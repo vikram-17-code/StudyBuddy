@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "946246004370",
+    "project_id": "device-streaming-ce120e99",
+    "storage_bucket": "device-streaming-ce120e99.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:946246004370:android:e196f908fe5b7116b9804b",
+        "android_client_info": {
+          "package_name": "com.example.studybuddy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrHbxqnc_7Y8P9q7zIPPGNTN8L_AD4weQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
