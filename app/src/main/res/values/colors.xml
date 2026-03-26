@@ -3,19 +3,24 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 
-    <!-- Lime and White Theme Colors -->
-    <color name="lime_primary">#CDDC39</color>
-    <color name="lime_primary_variant">#AFB42B</color>
-    <color name="lime_secondary">#DCE775</color>
-    <color name="lime_accent">#EEFF41</color>
+    <!-- Light Green and White Theme Colors -->
+    <color name="green_primary">#8BC34A</color>
+    <color name="green_primary_variant">#689F38</color>
+    <color name="green_secondary">#DCEDC8</color>
+    <color name="green_accent">#F1F8E9</color>
 
     <color name="background_white">#FAFAFA</color>
     <color name="surface_white">#FFFFFF</color>
 
-    <!-- Legacy names to avoid immediate breaks if used elsewhere -->
-    <color name="purple_200">#CDDC39</color>
-    <color name="purple_500">#CDDC39</color>
-    <color name="purple_700">#AFB42B</color>
-    <color name="teal_200">#EEFF41</color>
-    <color name="teal_700">#00E676</color>
+    <!-- Aliases for backwards compatibility -->
+    <color name="lime_primary">#8BC34A</color>
+    <color name="lime_primary_variant">#689F38</color>
+    <color name="lime_secondary">#DCEDC8</color>
+    <color name="lime_accent">#F1F8E9</color>
+
+    <color name="purple_200">#8BC34A</color>
+    <color name="purple_500">#8BC34A</color>
+    <color name="purple_700">#689F38</color>
+    <color name="teal_200">#DCEDC8</color>
+    <color name="teal_700">#689F38</color>
 </resources>

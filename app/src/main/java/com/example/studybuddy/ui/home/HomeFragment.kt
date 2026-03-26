@@ -17,6 +17,7 @@ import com.example.studybuddy.model.UserCourse
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import java.util.Calendar
 import java.util.UUID
 
 class HomeFragment : Fragment() {
@@ -25,6 +26,7 @@ class HomeFragment : Fragment() {
     private val binding get() = _binding!!
     private lateinit var taskAdapter: TaskAdapter
     private val db = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
 
     private val availableTopics = listOf(
         TopicDetail("daa_t1", "daa_plan", "Asymptotic Analysis", 2, "https://www.geeksforgeeks.org/analysis-of-algorithms-set-1-asymptotic-analysis/", 1),
@@ -49,14 +51,36 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
+        updateGreeting()
+        loadUserData()
         loadUserTasks()
+        
         binding.addTaskFab.setOnClickListener {
             findNavController().navigate(R.id.action_homeFragment_to_addTaskFragment)
         }
     }
 
+    private fun updateGreeting() {
+        val calendar = Calendar.getInstance()
+        val hour = calendar.get(Calendar.HOUR_OF_DAY)
+        val greeting = when (hour) {
+            in 0..11 -> "Good Morning,"
+            in 12..16 -> "Good Afternoon,"
+            else -> "Good Evening,"
+        }
+        binding.greetingTextView.text = greeting
+    }
+
+    private fun loadUserData() {
+        val user = auth.currentUser ?: return
+        db.collection("users").document(user.uid).get().addOnSuccessListener { doc ->
+            if (_binding != null) {
+                binding.userNameTextView.text = "${doc.getString("name") ?: "Student"}!"
+            }
+        }
+    }
+
     private fun setupRecyclerView() {
-        // Use explicit parameter names to avoid confusion with TaskAdapter's multiple lambdas
         taskAdapter = TaskAdapter(
             showCompleteButton = true,
             onTaskClick = { userCourse ->
@@ -76,7 +100,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun loadUserTasks() {
-        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val userId = auth.currentUser?.uid ?: return
         db.collection("user_courses")
             .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, e ->
@@ -88,21 +112,37 @@ class HomeFragment : Fragment() {
                 
                 if (snapshot != null) {
                     val taskList = mutableListOf<Pair<UserCourse, TopicDetail>>()
+                    var completedCount = 0
+                    val totalTasks = snapshot.size()
+
                     for (doc in snapshot) {
-                        // CRITICAL: Must map document ID to userCourseId for updates to work
                         val userCourse = doc.toObject(UserCourse::class.java).copy(userCourseId = doc.id)
-                        val currentTopic = availableTopics.find { it.topicId == userCourse.currentTopicId }
-                        if (currentTopic != null) {
-                            taskList.add(userCourse to currentTopic)
+                        
+                        if (userCourse.currentTopicId == "COMPLETED") {
+                            completedCount++
+                        } else {
+                            val currentTopic = availableTopics.find { it.topicId == userCourse.currentTopicId }
+                            if (currentTopic != null) {
+                                taskList.add(userCourse to currentTopic)
+                            }
                         }
                     }
                     taskAdapter.submitList(taskList)
+                    updateProgressDashboard(taskList.size, totalTasks)
                 }
             }
     }
 
+    private fun updateProgressDashboard(pendingTasks: Int, totalTasks: Int) {
+        val activeTasks = pendingTasks
+        binding.dailyTaskCountTextView.text = if (activeTasks == 0) "All caught up!" else "$activeTasks Tasks Today"
+        
+        val progress = if (totalTasks > 0) ((totalTasks - activeTasks) * 100) / totalTasks else 0
+        binding.dailyCircularProgress.setProgress(progress, true)
+    }
+
     private fun handleTaskCompletion(userCourse: UserCourse, topic: TopicDetail) {
-        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val userId = auth.currentUser?.uid ?: return
         val userCourseId = userCourse.userCourseId
         
         if (userCourseId.isEmpty()) {
@@ -110,23 +150,19 @@ class HomeFragment : Fragment() {
             return
         }
 
-        // 1. Log History
         val history = StudyHistory(UUID.randomUUID().toString(), userId, topic.topicId, Timestamp.now())
         db.collection("study_history").document(history.historyId).set(history)
 
-        // 2. Update Progress
         val updateData = mutableMapOf<String, Any>("lastStudyDate" to Timestamp.now())
 
         if (userCourse.currentDayNumber < topic.requiredDays) {
             updateData["currentDayNumber"] = userCourse.currentDayNumber + 1
         } else {
-            // Find next topic in order
             val nextTopic = availableTopics.find { it.planId == userCourse.planId && it.topicOrder == topic.topicOrder + 1 }
             if (nextTopic != null) {
                 updateData["currentTopicId"] = nextTopic.topicId
                 updateData["currentDayNumber"] = 1
             } else {
-                // Course fully completed - mark as such so calculators show 100%
                 updateData["currentTopicId"] = "COMPLETED"
                 updateData["currentDayNumber"] = topic.requiredDays + 1
                 if (isAdded) {
