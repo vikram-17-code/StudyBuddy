@@ -40,6 +40,9 @@
         <action
             android:id="@+id/action_homeFragment_to_addTaskFragment"
             app:destination="@id/addTaskFragment" />
+        <action
+            android:id="@+id/action_homeFragment_to_courseDetailFragment"
+            app:destination="@id/courseDetailFragment" />
     </fragment>
 
     <fragment
@@ -56,13 +59,21 @@
         android:id="@+id/progressFragment"
         android:name="com.example.studybuddy.ui.progress.ProgressFragment"
         android:title="Progress"
-        tools:layout="@layout/fragment_progress" />
+        tools:layout="@layout/fragment_progress">
+        <action
+            android:id="@+id/action_progressFragment_to_courseDetailFragment"
+            app:destination="@id/courseDetailFragment" />
+    </fragment>
 
     <fragment
         android:id="@+id/scheduleFragment"
         android:name="com.example.studybuddy.ui.schedule.ScheduleFragment"
         android:title="Schedule"
-        tools:layout="@layout/fragment_schedule" />
+        tools:layout="@layout/fragment_schedule">
+        <action
+            android:id="@+id/action_scheduleFragment_to_courseDetailFragment"
+            app:destination="@id/courseDetailFragment" />
+    </fragment>
 
     <fragment
         android:id="@+id/addTaskFragment"

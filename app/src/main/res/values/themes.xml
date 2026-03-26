@@ -2,7 +2,18 @@
     <!-- Base application theme. -->
     <style name="Base.Theme.StudyBuddy" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="colorPrimary">@color/lime_primary</item>
+        <item name="colorPrimaryVariant">@color/lime_primary_variant</item>
+        <item name="colorOnPrimary">@color/black</item>
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/lime_secondary</item>
+        <item name="colorSecondaryVariant">@color/lime_primary_variant</item>
+        <item name="colorOnSecondary">@color/black</item>
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+
+        <item name="android:windowBackground">@color/background_white</item>
+        <item name="colorSurface">@color/surface_white</item>
     </style>
 
     <style name="Theme.StudyBuddy" parent="Base.Theme.StudyBuddy" />

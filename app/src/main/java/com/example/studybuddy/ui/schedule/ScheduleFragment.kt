@@ -7,7 +7,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.studybuddy.R
 import com.example.studybuddy.databinding.FragmentScheduleBinding
 import com.example.studybuddy.model.TopicDetail
 import com.example.studybuddy.model.UserCourse
@@ -25,10 +27,18 @@ class ScheduleFragment : Fragment() {
     private val auth = FirebaseAuth.getInstance()
 
     private val availableTopics = listOf(
-        TopicDetail("daa_t1", "daa_plan", "Asymptotic Analysis", 2, "link_to_daa_1", 1),
-        TopicDetail("daa_t2", "daa_plan", "Divide and Conquer", 3, "link_to_daa_2", 2),
-        TopicDetail("java_t1", "java_plan", "OOP Concepts", 1, "link_to_java_1", 1),
-        TopicDetail("java_t2", "java_plan", "Collections", 2, "link_to_java_2", 2)
+        TopicDetail("daa_t1", "daa_plan", "Asymptotic Analysis", 2, "https://www.geeksforgeeks.org/analysis-of-algorithms-set-1-asymptotic-analysis/", 1),
+        TopicDetail("daa_t2", "daa_plan", "Divide and Conquer", 3, "https://www.tutorialspoint.com/data_structures_algorithms/divide_and_conquer.htm", 2),
+        TopicDetail("java_t1", "java_plan", "OOP Concepts", 1, "https://docs.oracle.com/javase/tutorial/java/concepts/", 1),
+        TopicDetail("java_t2", "java_plan", "Collections", 2, "https://www.javatpoint.com/collections-in-java", 2),
+        TopicDetail("dsa_t1", "dsa_plan", "Arrays & Linked Lists", 3, "https://www.programiz.com/dsa/linked-list", 1),
+        TopicDetail("dsa_t2", "dsa_plan", "Stacks & Queues", 2, "https://www.geeksforgeeks.org/stack-data-structure/", 2),
+        TopicDetail("web_t1", "web_plan", "HTML5 & CSS3", 2, "https://developer.mozilla.org/en-US/docs/Learn/Getting_started_with_the_web/HTML_basics", 1),
+        TopicDetail("web_t2", "web_plan", "JavaScript Basics", 3, "https://javascript.info/", 2),
+        TopicDetail("se_t1", "se_plan", "SDLC Models", 2, "https://www.tutorialspoint.com/software_engineering/software_engineering_sdlc_models.htm", 1),
+        TopicDetail("se_t2", "se_plan", "Agile Methodology", 2, "https://www.atlassian.com/agile", 2),
+        TopicDetail("eng_t1", "eng_plan", "Grammar & Tenses", 2, "https://www.grammarly.com/blog/verb-tenses/", 1),
+        TopicDetail("eng_t2", "eng_plan", "Business Communication", 3, "https://www.coursera.org/articles/business-communication", 2)
     )
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -52,7 +62,17 @@ class ScheduleFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        taskAdapter = TaskAdapter { _, _ -> }
+        // HIDE DAY INFO AND COMPLETE BUTTON, AND ADD CLICK NAVIGATION
+        taskAdapter = TaskAdapter(
+            showCompleteButton = false,
+            showDayInfo = false,
+            onTaskClick = { userCourse ->
+                val bundle = Bundle().apply {
+                    putString("userCourseId", userCourse.userCourseId)
+                }
+                findNavController().navigate(R.id.action_scheduleFragment_to_courseDetailFragment, bundle)
+            }
+        )
         binding.scheduleRecyclerView.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = taskAdapter
@@ -66,19 +86,21 @@ class ScheduleFragment : Fragment() {
             .whereEqualTo("userId", userId)
             .get()
             .addOnSuccessListener { snapshot ->
+                if (_binding == null) return@addOnSuccessListener
+                
                 val taskList = mutableListOf<Pair<UserCourse, TopicDetail>>()
                 for (doc in snapshot) {
-                    val userCourse = doc.toObject(UserCourse::class.java)
-                    val expectedTopic = calculateExpectedTopic(userCourse, selectedDate)
-                    if (expectedTopic != null) {
-                        taskList.add(userCourse to expectedTopic)
+                    val userCourse = doc.toObject(UserCourse::class.java).copy(userCourseId = doc.id)
+                    
+                    // ONLY SHOW INCOMPLETE COURSES
+                    if (userCourse.currentTopicId != "COMPLETED") {
+                        val expectedTopic = calculateExpectedTopic(userCourse, selectedDate)
+                        if (expectedTopic != null) {
+                            taskList.add(userCourse to expectedTopic)
+                        }
                     }
                 }
                 taskAdapter.submitList(taskList)
-                
-                if (taskList.isEmpty()) {
-                    Toast.makeText(requireContext(), "No tasks projected for this date", Toast.LENGTH_SHORT).show()
-                }
             }
     }
 
@@ -94,9 +116,8 @@ class ScheduleFragment : Fragment() {
             set(Calendar.MILLISECOND, 0)
         }
 
-        // Days between start and selected date
         val diffInMillis = selectedDate.timeInMillis - startCal.timeInMillis
-        if (diffInMillis < 0) return null // Selected date is before course start
+        if (diffInMillis < 0) return null 
 
         val daysFromStart = TimeUnit.MILLISECONDS.toDays(diffInMillis).toInt()
         
@@ -109,7 +130,7 @@ class ScheduleFragment : Fragment() {
             currentDayCounter = topicEndDay
         }
         
-        return null // Course expected to be finished
+        return null
     }
 
     override fun onDestroyView() {

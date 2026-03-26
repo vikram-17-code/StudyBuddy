@@ -11,7 +11,8 @@ data class UserProfile(
 
 data class CoursePlan(
     val planId: String = "",
-    val courseName: String = ""
+    val courseName: String = "",
+    val courseWebsite: String = "" // Added general course website link
 )
 
 data class TopicDetail(

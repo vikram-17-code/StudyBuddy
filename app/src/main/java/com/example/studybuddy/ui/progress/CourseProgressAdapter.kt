@@ -7,7 +7,9 @@ import com.example.studybuddy.databinding.ItemCourseProgressBinding
 import com.example.studybuddy.model.TopicDetail
 import com.example.studybuddy.model.UserCourse
 
-class CourseProgressAdapter : RecyclerView.Adapter<CourseProgressAdapter.ViewHolder>() {
+class CourseProgressAdapter(
+    private val onItemClick: (UserCourse) -> Unit
+) : RecyclerView.Adapter<CourseProgressAdapter.ViewHolder>() {
 
     private var items: List<Triple<UserCourse, List<TopicDetail>, Int>> = emptyList()
 
@@ -32,9 +34,14 @@ class CourseProgressAdapter : RecyclerView.Adapter<CourseProgressAdapter.ViewHol
         fun bind(userCourse: UserCourse, topics: List<TopicDetail>, progress: Int) {
             binding.courseNameTextView.text = userCourse.planId.replace("_plan", "").uppercase()
             binding.courseProgressBar.progress = progress
+            binding.percentTextView.text = "$progress%"
             
             val currentTopic = topics.find { it.topicId == userCourse.currentTopicId }
-            binding.progressStatusTextView.text = "Currently on: ${currentTopic?.topicName ?: "Completed"} ($progress%)"
+            binding.progressStatusTextView.text = "Current: ${currentTopic?.topicName ?: "Completed"}"
+            
+            binding.root.setOnClickListener {
+                onItemClick(userCourse)
+            }
         }
     }
 }
