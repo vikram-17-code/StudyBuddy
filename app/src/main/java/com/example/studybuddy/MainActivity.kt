@@ -36,10 +36,10 @@ class MainActivity : AppCompatActivity() {
         val navController = navHostFragment.navController
         binding.bottomNavigation.setupWithNavController(navController)
 
-        // Hide bottom navigation on login and register screens
+        // Hide bottom navigation on splash, login and register screens
         navController.addOnDestinationChangedListener { _, destination, _ ->
             when (destination.id) {
-                R.id.loginFragment, R.id.registerFragment -> {
+                R.id.splashFragment, R.id.loginFragment, R.id.registerFragment -> {
                     binding.bottomNavigation.visibility = View.GONE
                 }
                 else -> {
