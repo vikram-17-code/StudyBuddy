@@ -17,6 +17,7 @@ import com.example.studybuddy.model.UserCourse
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import java.util.Calendar
 import java.util.UUID
 
@@ -27,6 +28,7 @@ class HomeFragment : Fragment() {
     private lateinit var taskAdapter: TaskAdapter
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private var userDataListener: ListenerRegistration? = null
 
     private val availableTopics = listOf(
         TopicDetail("daa_t1", "daa_plan", "Asymptotic Analysis", 2, "https://www.geeksforgeeks.org/analysis-of-algorithms-set-1-asymptotic-analysis/", 1),
@@ -73,11 +75,19 @@ class HomeFragment : Fragment() {
 
     private fun loadUserData() {
         val user = auth.currentUser ?: return
-        db.collection("users").document(user.uid).get().addOnSuccessListener { doc ->
-            if (_binding != null) {
-                binding.userNameTextView.text = "${doc.getString("name") ?: "Student"}!"
+        // Use SnapshotListener for real-time updates when user profile changes
+        userDataListener = db.collection("users").document(user.uid)
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    Log.w("HomeFragment", "Listen failed.", e)
+                    return@addSnapshotListener
+                }
+
+                if (_binding != null && snapshot != null && snapshot.exists()) {
+                    val name = snapshot.getString("name") ?: "Student"
+                    binding.userNameTextView.text = "$name!"
+                }
             }
-        }
     }
 
     private fun setupRecyclerView() {
@@ -183,6 +193,7 @@ class HomeFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        userDataListener?.remove()
         _binding = null
     }
 }

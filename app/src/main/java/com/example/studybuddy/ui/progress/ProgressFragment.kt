@@ -70,7 +70,7 @@ class ProgressFragment : Fragment() {
                         course.copy(userCourseId = snapshot.documents[index].id)
                     }
                     val displayList = mutableListOf<Triple<UserCourse, List<TopicDetail>, Int>>()
-                    var totalCompletion = 0
+                    var totalCompletion = 0f
 
                     userCourses.forEach { userCourse ->
                         val topics = availableTopics.filter { it.planId == userCourse.planId }
@@ -81,9 +81,8 @@ class ProgressFragment : Fragment() {
 
                     adapter.submitList(displayList)
                     
-                    val overallProgress = if (userCourses.isNotEmpty()) totalCompletion / userCourses.size else 0
-                    binding.overallProgressBar.progress = overallProgress
-                    binding.progressPercentageTextView.text = "$overallProgress%"
+                    val overallProgress = if (userCourses.isNotEmpty()) totalCompletion / userCourses.size else 0f
+                    binding.overallPieChart.setProgress(overallProgress)
                 }
             }
     }

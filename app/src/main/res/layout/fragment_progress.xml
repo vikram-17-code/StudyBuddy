@@ -14,11 +14,12 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
             android:orientation="vertical"
             android:padding="24dp">
 
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Your Progress"
                 android:textColor="@color/black"
@@ -29,42 +30,52 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
-                app:cardCornerRadius="20dp"
+                app:cardCornerRadius="24dp"
                 app:cardElevation="8dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/gradient_card_bg"
+                    android:gravity="center_horizontal"
                     android:orientation="vertical"
-                    android:padding="24dp">
+                    android:padding="32dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Overall Completion"
-                        android:textColor="@color/white"
-                        android:textSize="16sp" />
+                        android:layout_marginBottom="24dp"
+                        android:text="Overall Study Completion"
+                        android:textColor="#616161"
+                        android:textSize="18sp"
+                        android:fontFamily="sans-serif-medium" />
 
-                    <TextView
-                        android:id="@+id/progressPercentageTextView"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="0%"
-                        android:textColor="@color/white"
-                        android:textSize="36sp"
-                        android:textStyle="bold" />
+                    <!-- Custom Pie Chart View -->
+                    <com.example.studybuddy.ui.progress.CircularPieChartView
+                        android:id="@+id/overallPieChart"
+                        android:layout_width="200dp"
+                        android:layout_height="200dp" />
 
-                    <ProgressBar
-                        android:id="@+id/overallProgressBar"
-                        style="?android:attr/progressBarStyleHorizontal"
+                    <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="8dp"
-                        android:layout_marginTop="16dp"
-                        android:max="100"
-                        android:progress="0"
-                        android:progressDrawable="@drawable/white_progress_bar" />
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="24dp"
+                        android:gravity="center"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:layout_width="12dp"
+                            android:layout_height="12dp"
+                            android:background="@color/green_primary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:text="Completed Tasks"
+                            android:textColor="#757575"
+                            android:textSize="14sp" />
+
+                    </LinearLayout>
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

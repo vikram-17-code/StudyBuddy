@@ -33,8 +33,7 @@ class CourseProgressAdapter(
     inner class ViewHolder(private val binding: ItemCourseProgressBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(userCourse: UserCourse, topics: List<TopicDetail>, progress: Int) {
             binding.courseNameTextView.text = userCourse.planId.replace("_plan", "").uppercase()
-            binding.courseProgressBar.progress = progress
-            binding.percentTextView.text = "$progress%"
+            binding.coursePieChart.setProgress(progress.toFloat())
             
             val currentTopic = topics.find { it.topicId == userCourse.currentTopicId }
             binding.progressStatusTextView.text = "Current: ${currentTopic?.topicName ?: "Completed"}"

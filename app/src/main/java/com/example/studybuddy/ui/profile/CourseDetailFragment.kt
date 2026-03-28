@@ -17,7 +17,11 @@ import com.example.studybuddy.model.UserCourse
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import nl.dionsegijn.konfetti.core.Party
+import nl.dionsegijn.konfetti.core.Position
+import nl.dionsegijn.konfetti.core.emitter.Emitter
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 class CourseDetailFragment : Fragment() {
     private var _binding: FragmentCourseDetailBinding? = null
@@ -74,7 +78,7 @@ class CourseDetailFragment : Fragment() {
             binding.detailCourseName.text = userCourse.planId.replace("_plan", "").uppercase()
             
             val progress = calculateProgress(userCourse, courseTopics)
-            binding.courseDetailProgressBar.progress = progress
+            binding.courseDetailPieChart.setProgress(progress.toFloat())
             binding.courseDetailStatus.text = "Overall Progress: $progress%"
             
             adapter.submitList(courseTopics, userCourse)
@@ -129,9 +133,25 @@ class CourseDetailFragment : Fragment() {
             }
 
             db.collection("user_courses").document(userCourseId).update(updateData).addOnSuccessListener {
-                if (isAdded) Toast.makeText(requireContext(), "Progress updated!", Toast.LENGTH_SHORT).show()
+                if (isAdded) {
+                    triggerConfetti()
+                    Toast.makeText(requireContext(), "Great job! Task completed!", Toast.LENGTH_SHORT).show()
+                }
             }
         }
+    }
+
+    private fun triggerConfetti() {
+        val party = Party(
+            speed = 0f,
+            maxSpeed = 30f,
+            damping = 0.9f,
+            spread = 360,
+            colors = listOf(0xfce18a, 0xff726d, 0xf4306d, 0xb48def),
+            position = Position.Relative(0.5, 0.3),
+            emitter = Emitter(duration = 100, TimeUnit.MILLISECONDS).max(100)
+        )
+        binding.konfettiView.start(party)
     }
 
     private fun showDeleteConfirmation(id: String) {

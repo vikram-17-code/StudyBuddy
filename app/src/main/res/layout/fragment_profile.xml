@@ -1,68 +1,135 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F5F5F5"
-    android:gravity="center_horizontal"
-    android:orientation="vertical"
-    android:padding="24dp">
+    android:fillViewport="true">
 
-    <com.google.android.material.card.MaterialCardView
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        app:cardCornerRadius="60dp"
-        app:cardElevation="4dp"
-        app:strokeColor="@color/purple_500"
-        app:strokeWidth="2dp">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="24dp">
 
-        <ImageView
-            android:id="@+id/profileImageView"
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            app:cardCornerRadius="60dp"
+            app:cardElevation="4dp"
+            app:strokeColor="@color/green_primary"
+            app:strokeWidth="2dp">
+
+            <ImageView
+                android:id="@+id/profileImageView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_person_placeholder"
+                android:padding="16dp" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:id="@+id/userNameTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="User Name"
+            android:textColor="@color/black"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/userDescriptionTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="No description set"
+            android:textColor="#757575"
+            android:textSize="15sp"
+            android:textAlignment="center" />
+
+        <TextView
+            android:id="@+id/userEmailTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="user@example.com"
+            android:textColor="#9E9E9E"
+            android:textSize="14sp" />
+
+        <com.google.android.material.divider.MaterialDivider
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:src="@android:drawable/ic_menu_gallery" />
-    </com.google.android.material.card.MaterialCardView>
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="20dp" />
 
-    <TextView
-        android:id="@+id/userNameTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="User Name"
-        android:textColor="@color/black"
-        android:textSize="24sp"
-        android:textStyle="bold" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Your Badges"
+            android:textColor="@color/black"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp" />
 
-    <TextView
-        android:id="@+id/userEmailTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="user@example.com"
-        android:textColor="#757575"
-        android:textSize="16sp" />
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp"
+            app:strokeWidth="0dp">
 
-    <com.google.android.material.divider.MaterialDivider
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginVertical="24dp" />
+            <GridLayout
+                android:id="@+id/badgesGridLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:columnCount="4"
+                android:padding="16dp"
+                android:alignmentMode="alignMargins"
+                android:useDefaultMargins="true">
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/editProfileButton"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Edit Profile"
-        app:cornerRadius="8dp" />
+                <!-- Badges will be updated dynamically in code, but here's the structure -->
+                <LinearLayout android:orientation="vertical" android:gravity="center">
+                    <ImageView android:id="@+id/badgeDaa" android:layout_width="50dp" android:layout_height="50dp" android:src="@drawable/ic_badge_locked" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="DAA" android:textSize="10sp" />
+                </LinearLayout>
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/logoutButton"
-        style="@style/Widget.MaterialComponents.Button.TextButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Logout"
-        android:textColor="@android:color/holo_red_dark" />
+                <LinearLayout android:orientation="vertical" android:gravity="center">
+                    <ImageView android:id="@+id/badgeJava" android:layout_width="50dp" android:layout_height="50dp" android:src="@drawable/ic_badge_locked" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="JAVA" android:textSize="10sp" />
+                </LinearLayout>
 
-</LinearLayout>
+                <LinearLayout android:orientation="vertical" android:gravity="center">
+                    <ImageView android:id="@+id/badgeDsa" android:layout_width="50dp" android:layout_height="50dp" android:src="@drawable/ic_badge_locked" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="DSA" android:textSize="10sp" />
+                </LinearLayout>
+
+                <LinearLayout android:orientation="vertical" android:gravity="center">
+                    <ImageView android:id="@+id/badgeWeb" android:layout_width="50dp" android:layout_height="50dp" android:src="@drawable/ic_badge_locked" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="WEB" android:textSize="10sp" />
+                </LinearLayout>
+
+            </GridLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/editProfileButton"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Edit Profile"
+            app:cornerRadius="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/logoutButton"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Logout"
+            android:textColor="@android:color/holo_red_dark" />
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

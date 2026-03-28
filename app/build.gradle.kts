@@ -51,6 +51,12 @@ dependencies {
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
 
+    // Konfetti for celebration
+    implementation(libs.konfetti.xml)
+
+    // Material Calendar View for highlighting dates
+    implementation(libs.material.calendarview)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

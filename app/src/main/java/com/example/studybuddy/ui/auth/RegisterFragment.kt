@@ -10,12 +10,14 @@ import androidx.navigation.fragment.findNavController
 import com.example.studybuddy.R
 import com.example.studybuddy.databinding.FragmentRegisterBinding
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 class RegisterFragment : Fragment() {
 
     private var _binding: FragmentRegisterBinding? = null
     private val binding get() = _binding!!
     private lateinit var auth: FirebaseAuth
+    private val db = FirebaseFirestore.getInstance()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -30,14 +32,28 @@ class RegisterFragment : Fragment() {
         auth = FirebaseAuth.getInstance()
 
         binding.registerButton.setOnClickListener {
-            val email = binding.emailEditText.text.toString()
-            val password = binding.passwordEditText.text.toString()
+            val name = binding.nameEditText.text.toString().trim()
+            val email = binding.emailEditText.text.toString().trim()
+            val password = binding.passwordEditText.text.toString().trim()
 
-            if (email.isNotEmpty() && password.isNotEmpty()) {
+            if (name.isNotEmpty() && email.isNotEmpty() && password.isNotEmpty()) {
                 auth.createUserWithEmailAndPassword(email, password)
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
-                            findNavController().navigate(R.id.action_registerFragment_to_homeFragment)
+                            val userId = auth.currentUser?.uid
+                            if (userId != null) {
+                                val user = hashMapOf(
+                                    "name" to name,
+                                    "email" to email
+                                )
+                                db.collection("users").document(userId).set(user)
+                                    .addOnSuccessListener {
+                                        findNavController().navigate(R.id.action_registerFragment_to_homeFragment)
+                                    }
+                                    .addOnFailureListener { e ->
+                                        Toast.makeText(requireContext(), "Failed to save user data: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                            }
                         } else {
                             Toast.makeText(requireContext(), "Registration failed: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
                         }

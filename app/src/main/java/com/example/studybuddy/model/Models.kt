@@ -50,3 +50,12 @@ data class AppNotification(
     val sentTime: Timestamp = Timestamp.now(),
     val isRead: Boolean = false
 )
+
+data class ImportantEvent(
+    val eventId: String = "",
+    val userId: String = "",
+    val title: String = "",
+    val description: String = "",
+    val eventDate: Timestamp = Timestamp.now(),
+    val type: String = "Exam" // e.g., Exam, Submission, Presentation
+)
