@@ -9,6 +9,7 @@ import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.Spinner
 import android.widget.Toast
+import android.app.TimePickerDialog
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -37,6 +38,7 @@ class ScheduleFragment : Fragment() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private var selectedDate = Calendar.getInstance()
+    private var timeSlots: List<com.example.studybuddy.model.TimeSlot> = emptyList()
 
     private val availableTopics = listOf(
         TopicDetail("daa_t1", "daa_plan", "Asymptotic Analysis", 2, "https://www.geeksforgeeks.org/analysis-of-algorithms-set-1-asymptotic-analysis/", 1),
@@ -62,6 +64,7 @@ class ScheduleFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclers()
         loadAllEventsForCalendar()
+        loadTimeSlots()
         
         selectedDate.set(Calendar.HOUR_OF_DAY, 0)
         selectedDate.set(Calendar.MINUTE, 0)
@@ -79,6 +82,10 @@ class ScheduleFragment : Fragment() {
 
         binding.addEventFab.setOnClickListener {
             showAddEventDialog()
+        }
+
+        binding.addTimeSlotFab.setOnClickListener {
+            showAddTimeSlotDialog()
         }
     }
 
@@ -154,8 +161,24 @@ class ScheduleFragment : Fragment() {
             .addOnSuccessListener { snapshot ->
                 if (_binding == null) return@addOnSuccessListener
                 val taskList = mutableListOf<Pair<UserCourse, TopicDetail>>()
+                val currentDayOfWeek = date.get(Calendar.DAY_OF_WEEK)
+                
                 for (doc in snapshot) {
                     val userCourse = doc.toObject(UserCourse::class.java).copy(userCourseId = doc.id)
+                    val timeSlot = timeSlots.find { it.slotId == userCourse.preferredSlot }
+                    
+                    if (timeSlot != null && timeSlot.selectedDays.isNotEmpty() && !timeSlot.selectedDays.contains(currentDayOfWeek)) {
+                        continue
+                    }
+
+                    if (userCourse.lastStudyDate != null) {
+                        val studyCal = Calendar.getInstance().apply { time = userCourse.lastStudyDate.toDate() }
+                        if (studyCal.get(Calendar.YEAR) == date.get(Calendar.YEAR) &&
+                            studyCal.get(Calendar.DAY_OF_YEAR) == date.get(Calendar.DAY_OF_YEAR)) {
+                            continue
+                        }
+                    }
+
                     if (userCourse.currentTopicId != "COMPLETED") {
                         val expectedTopic = calculateExpectedTopic(userCourse, date)
                         if (expectedTopic != null) {
@@ -243,21 +266,122 @@ class ScheduleFragment : Fragment() {
             set(Calendar.MILLISECOND, 0)
         }
 
-        val diffInMillis = date.timeInMillis - startCal.timeInMillis
-        if (diffInMillis < 0) return null 
+        if (date.timeInMillis < startCal.timeInMillis) return null 
 
-        val daysFromStart = TimeUnit.MILLISECONDS.toDays(diffInMillis).toInt()
-        
+        val timeSlot = timeSlots.find { it.slotId == userCourse.preferredSlot }
+        val validDays = timeSlot?.selectedDays ?: emptyList()
+
+        if (validDays.isEmpty()) {
+            val diffInMillis = date.timeInMillis - startCal.timeInMillis
+            val daysFromStart = TimeUnit.MILLISECONDS.toDays(diffInMillis).toInt()
+            
+            var currentDayCounter = 0
+            for (topic in courseTopics) {
+                val topicEndDay = currentDayCounter + topic.requiredDays
+                if (daysFromStart < topicEndDay) return topic
+                currentDayCounter = topicEndDay
+            }
+            return null
+        }
+
+        var studyDaysPassed = 0
+        val tempCal = startCal.clone() as Calendar
+        while (tempCal.timeInMillis < date.timeInMillis) {
+            if (validDays.contains(tempCal.get(Calendar.DAY_OF_WEEK))) {
+                studyDaysPassed++
+            }
+            tempCal.add(Calendar.DAY_OF_YEAR, 1)
+        }
+
         var currentDayCounter = 0
         for (topic in courseTopics) {
             val topicEndDay = currentDayCounter + topic.requiredDays
-            if (daysFromStart < topicEndDay) {
+            if (studyDaysPassed < topicEndDay) {
                 return topic
             }
             currentDayCounter = topicEndDay
         }
         
         return null
+    }
+
+    private fun loadTimeSlots() {
+        val userId = auth.currentUser?.uid ?: return
+        db.collection("time_slots")
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { snapshot, _ ->
+                if (_binding == null) return@addSnapshotListener
+                val slots = mutableListOf<com.example.studybuddy.model.TimeSlot>()
+                snapshot?.forEach { doc ->
+                    doc.toObject(com.example.studybuddy.model.TimeSlot::class.java).let { slots.add(it) }
+                }
+                timeSlots = slots
+                loadActivitiesForDate(selectedDate)
+            }
+    }
+
+    private fun showAddTimeSlotDialog() {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_time_slot, null)
+        val nameInput = dialogView.findViewById<android.widget.EditText>(R.id.slotNameInput)
+        val cbSun = dialogView.findViewById<android.widget.CheckBox>(R.id.cbSun)
+        val cbMon = dialogView.findViewById<android.widget.CheckBox>(R.id.cbMon)
+        val cbTue = dialogView.findViewById<android.widget.CheckBox>(R.id.cbTue)
+        val cbWed = dialogView.findViewById<android.widget.CheckBox>(R.id.cbWed)
+        val cbThu = dialogView.findViewById<android.widget.CheckBox>(R.id.cbThu)
+        val cbFri = dialogView.findViewById<android.widget.CheckBox>(R.id.cbFri)
+        val cbSat = dialogView.findViewById<android.widget.CheckBox>(R.id.cbSat)
+        
+        AlertDialog.Builder(requireContext())
+            .setTitle("Add Time Slot")
+            .setView(dialogView)
+            .setPositiveButton("Next") { _, _ ->
+                val slotName = nameInput.text.toString().trim()
+                val selectedDays = mutableListOf<Int>()
+                if (cbSun.isChecked) selectedDays.add(Calendar.SUNDAY)
+                if (cbMon.isChecked) selectedDays.add(Calendar.MONDAY)
+                if (cbTue.isChecked) selectedDays.add(Calendar.TUESDAY)
+                if (cbWed.isChecked) selectedDays.add(Calendar.WEDNESDAY)
+                if (cbThu.isChecked) selectedDays.add(Calendar.THURSDAY)
+                if (cbFri.isChecked) selectedDays.add(Calendar.FRIDAY)
+                if (cbSat.isChecked) selectedDays.add(Calendar.SATURDAY)
+
+                if (slotName.isNotEmpty() && selectedDays.isNotEmpty()) {
+                    pickTimeForSlot(slotName, selectedDays)
+                } else {
+                    Toast.makeText(requireContext(), "Name and at least one day required", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun pickTimeForSlot(slotName: String, selectedDays: List<Int>) {
+        val calendar = Calendar.getInstance()
+        TimePickerDialog(requireContext(), { _, hourOfDay, minute ->
+            saveTimeSlot(slotName, hourOfDay, minute, selectedDays)
+        }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show()
+    }
+
+    private fun saveTimeSlot(name: String, hour: Int, minute: Int, selectedDays: List<Int>) {
+        val userId = auth.currentUser?.uid ?: return
+        val slotId = UUID.randomUUID().toString()
+        val timeString = String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
+        val timeSlot = com.example.studybuddy.model.TimeSlot(
+            slotId = slotId,
+            userId = userId,
+            name = name,
+            timeString = timeString,
+            hour = hour,
+            minute = minute,
+            selectedDays = selectedDays
+        )
+        db.collection("time_slots").document(slotId).set(timeSlot)
+            .addOnSuccessListener {
+                if (isAdded) {
+                    Toast.makeText(context, "Time Slot Added", Toast.LENGTH_SHORT).show()
+                    com.example.studybuddy.notification.NotificationHelper.scheduleTimeSlotAlarm(requireContext(), timeSlot)
+                }
+            }
     }
 
     override fun onDestroyView() {

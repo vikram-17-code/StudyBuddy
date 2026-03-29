@@ -25,10 +25,13 @@ class HomeFragment : Fragment() {
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
-    private lateinit var taskAdapter: TaskAdapter
+    private lateinit var todayTaskAdapter: TaskAdapter
+    private lateinit var upcomingTaskAdapter: TaskAdapter
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private var userDataListener: ListenerRegistration? = null
+    private var timeSlots: List<com.example.studybuddy.model.TimeSlot> = emptyList()
+    private var userCoursesList: List<UserCourse> = emptyList()
 
     private val availableTopics = listOf(
         TopicDetail("daa_t1", "daa_plan", "Asymptotic Analysis", 2, "https://www.geeksforgeeks.org/analysis-of-algorithms-set-1-asymptotic-analysis/", 1),
@@ -55,6 +58,7 @@ class HomeFragment : Fragment() {
         setupRecyclerView()
         updateGreeting()
         loadUserData()
+        loadTimeSlots()
         loadUserTasks()
         
         binding.addTaskFab.setOnClickListener {
@@ -91,22 +95,49 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        taskAdapter = TaskAdapter(
+        todayTaskAdapter = TaskAdapter(
             showCompleteButton = true,
+            showDayInfo = true,
             onTaskClick = { userCourse ->
-                val bundle = Bundle().apply {
-                    putString("userCourseId", userCourse.userCourseId)
-                }
+                val bundle = Bundle().apply { putString("userCourseId", userCourse.userCourseId) }
                 findNavController().navigate(R.id.action_homeFragment_to_courseDetailFragment, bundle)
             },
             onCompleteClick = { userCourse, topic ->
                 handleTaskCompletion(userCourse, topic)
             }
         )
-        binding.tasksRecyclerView.apply {
+        binding.todayTasksRecyclerView.apply {
             layoutManager = LinearLayoutManager(requireContext())
-            adapter = taskAdapter
+            adapter = todayTaskAdapter
         }
+
+        upcomingTaskAdapter = TaskAdapter(
+            showCompleteButton = false,
+            showDayInfo = true,
+            onTaskClick = { userCourse ->
+                val bundle = Bundle().apply { putString("userCourseId", userCourse.userCourseId) }
+                findNavController().navigate(R.id.action_homeFragment_to_courseDetailFragment, bundle)
+            }
+        )
+        binding.upcomingTasksRecyclerView.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = upcomingTaskAdapter
+        }
+    }
+
+    private fun loadTimeSlots() {
+        val userId = auth.currentUser?.uid ?: return
+        db.collection("time_slots")
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { snapshot, _ ->
+                if (_binding == null) return@addSnapshotListener
+                val slots = mutableListOf<com.example.studybuddy.model.TimeSlot>()
+                snapshot?.forEach { doc ->
+                    doc.toObject(com.example.studybuddy.model.TimeSlot::class.java).let { slots.add(it) }
+                }
+                timeSlots = slots
+                processTasks()
+            }
     }
 
     private fun loadUserTasks() {
@@ -119,28 +150,56 @@ class HomeFragment : Fragment() {
                     Log.e("HomeFragment", "Listen failed", e)
                     return@addSnapshotListener
                 }
-                
                 if (snapshot != null) {
-                    val taskList = mutableListOf<Pair<UserCourse, TopicDetail>>()
-                    var completedCount = 0
-                    val totalTasks = snapshot.size()
-
-                    for (doc in snapshot) {
-                        val userCourse = doc.toObject(UserCourse::class.java).copy(userCourseId = doc.id)
-                        
-                        if (userCourse.currentTopicId == "COMPLETED") {
-                            completedCount++
-                        } else {
-                            val currentTopic = availableTopics.find { it.topicId == userCourse.currentTopicId }
-                            if (currentTopic != null) {
-                                taskList.add(userCourse to currentTopic)
-                            }
-                        }
-                    }
-                    taskAdapter.submitList(taskList)
-                    updateProgressDashboard(taskList.size, totalTasks)
+                    userCoursesList = snapshot.map { it.toObject(UserCourse::class.java).copy(userCourseId = it.id) }
+                    processTasks()
                 }
             }
+    }
+
+    private fun processTasks() {
+        if (_binding == null) return
+        val currentDayOfWeek = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
+        val today = Calendar.getInstance()
+        
+        val todayList = mutableListOf<Pair<UserCourse, TopicDetail>>()
+        val upcomingList = mutableListOf<Pair<UserCourse, TopicDetail>>()
+        val totalTasks = userCoursesList.size
+
+        for (userCourse in userCoursesList) {
+            if (userCourse.currentTopicId == "COMPLETED") {
+                continue
+            }
+
+            val currentTopic = availableTopics.find { it.topicId == userCourse.currentTopicId } ?: continue
+            val timeSlot = timeSlots.find { it.slotId == userCourse.preferredSlot }
+            
+            // Check if task maps to today
+            val isScheduledToday = timeSlot != null && timeSlot.selectedDays.contains(currentDayOfWeek)
+            
+            // Determine if the user completed the task today specifically
+            var studiedToday = false
+            if (userCourse.lastStudyDate != null) {
+                val studyCal = Calendar.getInstance().apply { time = userCourse.lastStudyDate.toDate() }
+                if (studyCal.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
+                    studyCal.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)) {
+                    studiedToday = true
+                }
+            }
+
+            if (isScheduledToday && !studiedToday) {
+                todayList.add(userCourse to currentTopic)
+            } else {
+                upcomingList.add(userCourse to currentTopic)
+            }
+        }
+
+        todayTaskAdapter.submitList(todayList)
+        upcomingTaskAdapter.submitList(upcomingList)
+
+        binding.freeTodayTextView.visibility = if (todayList.isEmpty()) View.VISIBLE else View.GONE
+        
+        updateProgressDashboard(todayList.size, totalTasks)
     }
 
     private fun updateProgressDashboard(pendingTasks: Int, totalTasks: Int) {

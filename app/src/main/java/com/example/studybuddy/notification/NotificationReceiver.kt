@@ -12,6 +12,14 @@ class NotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val courseName = intent.getStringExtra("courseName") ?: "Course"
         val topicName = intent.getStringExtra("topicName") ?: "Topic"
+        val selectedDays = intent.getIntArrayExtra("selectedDays")
+        
+        if (selectedDays != null && selectedDays.isNotEmpty()) {
+            val currentDay = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
+            if (!selectedDays.contains(currentDay)) {
+                return // Drop the notification if today is not a selected day
+            }
+        }
         
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "study_reminders"

@@ -30,8 +30,7 @@ class AddTaskFragment : Fragment() {
     private var _binding: FragmentAddTaskBinding? = null
     private val binding get() = _binding!!
     private lateinit var topicAdapter: TopicListAdapter
-    private var selectedHour: Int = -1
-    private var selectedMinute: Int = -1
+    private var userTimeSlots: List<com.example.studybuddy.model.TimeSlot> = emptyList()
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
@@ -69,14 +68,11 @@ class AddTaskFragment : Fragment() {
         setupRecyclerView()
         checkUserEnrollment()
 
-        binding.pickTimeButton.setOnClickListener {
-            val calendar = Calendar.getInstance()
-            TimePickerDialog(requireContext(), { _, hourOfDay, minute ->
-                selectedHour = hourOfDay
-                selectedMinute = minute
-                binding.selectedTimeTextView.text = String.format(Locale.getDefault(), "Selected Slot: %02d:%02d", hourOfDay, minute)
-            }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show()
+        binding.addTimeSlotButton.setOnClickListener {
+            showAddTimeSlotDialog()
         }
+        
+        loadTimeSlots()
 
         binding.saveTaskButton.setOnClickListener {
             confirmCoursePlan()
@@ -130,10 +126,12 @@ class AddTaskFragment : Fragment() {
         val selectedItem = binding.courseSpinner.selectedItem?.toString() ?: return
         val selectedPlan = availableCoursePlans.find { it.courseName == selectedItem } ?: return
         
-        if (selectedHour == -1) {
-            Toast.makeText(context, "Please select a time slot", Toast.LENGTH_SHORT).show()
+        val selectedSlotPos = binding.timeSlotSpinner.selectedItemPosition
+        if (userTimeSlots.isEmpty() || selectedSlotPos == AdapterView.INVALID_POSITION) {
+            Toast.makeText(context, "Please select or add a time slot", Toast.LENGTH_SHORT).show()
             return
         }
+        val selectedSlot = userTimeSlots[selectedSlotPos]
 
         binding.saveTaskButton.isEnabled = false
 
@@ -150,7 +148,7 @@ class AddTaskFragment : Fragment() {
                     return@addOnSuccessListener
                 }
 
-                val preferredSlot = String.format(Locale.getDefault(), "%02d:%02d", selectedHour, selectedMinute)
+                val preferredSlot = selectedSlot.slotId
                 val firstTopic = availableTopics.find { it.planId == selectedPlan.planId && it.topicOrder == 1 }
                 
                 val userCourse = UserCourse(
@@ -177,6 +175,92 @@ class AddTaskFragment : Fragment() {
                             Toast.makeText(context, "Failed to join course", Toast.LENGTH_SHORT).show()
                         }
                     }
+            }
+    }
+
+    private fun loadTimeSlots() {
+        val userId = auth.currentUser?.uid ?: return
+        db.collection("time_slots")
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { snapshot, _ ->
+                if (_binding == null || !isAdded) return@addSnapshotListener
+                val slots = mutableListOf<com.example.studybuddy.model.TimeSlot>()
+                snapshot?.forEach { doc ->
+                    doc.toObject(com.example.studybuddy.model.TimeSlot::class.java).let { slots.add(it) }
+                }
+                userTimeSlots = slots
+                val names = userTimeSlots.map { "${it.name} (${it.timeString})" }
+                if (names.isNotEmpty()) {
+                    val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, names)
+                    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                    binding.timeSlotSpinner.adapter = adapter
+                } else {
+                    binding.timeSlotSpinner.adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, listOf("No slots available"))
+                }
+            }
+    }
+
+    private fun showAddTimeSlotDialog() {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_time_slot, null)
+        val nameInput = dialogView.findViewById<android.widget.EditText>(R.id.slotNameInput)
+        val cbSun = dialogView.findViewById<android.widget.CheckBox>(R.id.cbSun)
+        val cbMon = dialogView.findViewById<android.widget.CheckBox>(R.id.cbMon)
+        val cbTue = dialogView.findViewById<android.widget.CheckBox>(R.id.cbTue)
+        val cbWed = dialogView.findViewById<android.widget.CheckBox>(R.id.cbWed)
+        val cbThu = dialogView.findViewById<android.widget.CheckBox>(R.id.cbThu)
+        val cbFri = dialogView.findViewById<android.widget.CheckBox>(R.id.cbFri)
+        val cbSat = dialogView.findViewById<android.widget.CheckBox>(R.id.cbSat)
+        
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Add Time Slot")
+            .setView(dialogView)
+            .setPositiveButton("Next") { _, _ ->
+                val slotName = nameInput.text.toString().trim()
+                val selectedDays = mutableListOf<Int>()
+                if (cbSun.isChecked) selectedDays.add(Calendar.SUNDAY)
+                if (cbMon.isChecked) selectedDays.add(Calendar.MONDAY)
+                if (cbTue.isChecked) selectedDays.add(Calendar.TUESDAY)
+                if (cbWed.isChecked) selectedDays.add(Calendar.WEDNESDAY)
+                if (cbThu.isChecked) selectedDays.add(Calendar.THURSDAY)
+                if (cbFri.isChecked) selectedDays.add(Calendar.FRIDAY)
+                if (cbSat.isChecked) selectedDays.add(Calendar.SATURDAY)
+
+                if (slotName.isNotEmpty() && selectedDays.isNotEmpty()) {
+                    pickTimeForSlot(slotName, selectedDays)
+                } else {
+                    Toast.makeText(requireContext(), "Name and at least one day required", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun pickTimeForSlot(slotName: String, selectedDays: List<Int>) {
+        val calendar = Calendar.getInstance()
+        TimePickerDialog(requireContext(), { _, hourOfDay, minute ->
+            saveTimeSlot(slotName, hourOfDay, minute, selectedDays)
+        }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show()
+    }
+
+    private fun saveTimeSlot(name: String, hour: Int, minute: Int, selectedDays: List<Int>) {
+        val userId = auth.currentUser?.uid ?: return
+        val slotId = UUID.randomUUID().toString()
+        val timeString = String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
+        val timeSlot = com.example.studybuddy.model.TimeSlot(
+            slotId = slotId,
+            userId = userId,
+            name = name,
+            timeString = timeString,
+            hour = hour,
+            minute = minute,
+            selectedDays = selectedDays
+        )
+        db.collection("time_slots").document(slotId).set(timeSlot)
+            .addOnSuccessListener {
+                if (isAdded) {
+                    Toast.makeText(context, "Time Slot Added", Toast.LENGTH_SHORT).show()
+                    com.example.studybuddy.notification.NotificationHelper.scheduleTimeSlotAlarm(requireContext(), timeSlot)
+                }
             }
     }
 

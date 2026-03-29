@@ -59,3 +59,13 @@ data class ImportantEvent(
     val eventDate: Timestamp = Timestamp.now(),
     val type: String = "Exam" // e.g., Exam, Submission, Presentation
 )
+
+data class TimeSlot(
+    val slotId: String = "",
+    val userId: String = "",
+    val name: String = "",
+    val timeString: String = "", // e.g. "08:30"
+    val hour: Int = 0,
+    val minute: Int = 0,
+    val selectedDays: List<Int> = emptyList()
+)
