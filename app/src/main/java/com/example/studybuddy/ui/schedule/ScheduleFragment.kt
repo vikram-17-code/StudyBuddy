@@ -40,20 +40,7 @@ class ScheduleFragment : Fragment() {
     private var selectedDate = Calendar.getInstance()
     private var timeSlots: List<com.example.studybuddy.model.TimeSlot> = emptyList()
 
-    private val availableTopics = listOf(
-        TopicDetail("daa_t1", "daa_plan", "Asymptotic Analysis", 2, "https://www.geeksforgeeks.org/analysis-of-algorithms-set-1-asymptotic-analysis/", 1),
-        TopicDetail("daa_t2", "daa_plan", "Divide and Conquer", 3, "https://www.tutorialspoint.com/data_structures_algorithms/divide_and_conquer.htm", 2),
-        TopicDetail("java_t1", "java_plan", "OOP Concepts", 1, "https://docs.oracle.com/javase/tutorial/java/concepts/", 1),
-        TopicDetail("java_t2", "java_plan", "Collections", 2, "https://www.javatpoint.com/collections-in-java", 2),
-        TopicDetail("dsa_t1", "dsa_plan", "Arrays & Linked Lists", 3, "https://www.programiz.com/dsa/linked-list", 1),
-        TopicDetail("dsa_t2", "dsa_plan", "Stacks & Queues", 2, "https://www.geeksforgeeks.org/stack-data-structure/", 2),
-        TopicDetail("web_t1", "web_plan", "HTML5 & CSS3", 2, "https://developer.mozilla.org/en-US/docs/Learn/Getting_started_with_the_web/HTML_basics", 1),
-        TopicDetail("web_t2", "web_plan", "JavaScript Basics", 3, "https://javascript.info/", 2),
-        TopicDetail("se_t1", "se_plan", "SDLC Models", 2, "https://www.tutorialspoint.com/software_engineering/software_engineering_sdlc_models.htm", 1),
-        TopicDetail("se_t2", "se_plan", "Agile Methodology", 2, "https://www.atlassian.com/agile", 2),
-        TopicDetail("eng_t1", "eng_plan", "Grammar & Tenses", 2, "https://www.grammarly.com/blog/verb-tenses/", 1),
-        TopicDetail("eng_t2", "eng_plan", "Business Communication", 3, "https://www.coursera.org/articles/business-communication", 2)
-    )
+    private val availableTopics = com.example.studybuddy.data.CourseData.availableTopics
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentScheduleBinding.inflate(inflater, container, false)
@@ -87,6 +74,10 @@ class ScheduleFragment : Fragment() {
         binding.addTimeSlotFab.setOnClickListener {
             showAddTimeSlotDialog()
         }
+        binding.addTimeSlotFab.setOnLongClickListener {
+            showManageTimeSlotsDialog()
+            true
+        }
     }
 
     private fun setupRecyclers() {
@@ -105,7 +96,9 @@ class ScheduleFragment : Fragment() {
             adapter = taskAdapter
         }
 
-        eventAdapter = ImportantEventAdapter()
+        eventAdapter = ImportantEventAdapter { event ->
+            showEventOptionsDialog(event)
+        }
         binding.eventsRecyclerView.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = eventAdapter
@@ -254,6 +247,85 @@ class ScheduleFragment : Fragment() {
             }
     }
 
+    private fun showEventOptionsDialog(event: ImportantEvent) {
+        val options = arrayOf("Edit", "Delete")
+        AlertDialog.Builder(requireContext())
+            .setTitle(event.title)
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showEditEventDialog(event)
+                    1 -> confirmDeleteEvent(event)
+                }
+            }
+            .show()
+    }
+
+    private fun showEditEventDialog(event: ImportantEvent) {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_event, null)
+        val titleInput = dialogView.findViewById<EditText>(R.id.eventTitleInput)
+        val descInput = dialogView.findViewById<EditText>(R.id.eventDescInput)
+        val typeSpinner = dialogView.findViewById<Spinner>(R.id.eventTypeSpinner)
+
+        val types = arrayOf("Exam", "Assignment", "Presentation", "Meeting")
+        typeSpinner.adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, types)
+
+        titleInput.setText(event.title)
+        descInput.setText(event.description)
+        val selectionIndex = types.indexOfFirst { it.equals(event.type, ignoreCase = true) }
+        if (selectionIndex >= 0) {
+            typeSpinner.setSelection(selectionIndex)
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Edit Event")
+            .setView(dialogView)
+            .setPositiveButton("Save") { _, _ ->
+                val title = titleInput.text.toString().trim()
+                val desc = descInput.text.toString().trim()
+                val type = typeSpinner.selectedItem.toString()
+
+                if (title.isNotEmpty()) {
+                    updateEvent(event.eventId, title, desc, type)
+                } else {
+                    Toast.makeText(requireContext(), "Title is required", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun updateEvent(eventId: String, title: String, desc: String, type: String) {
+        val updates = mapOf(
+            "title" to title,
+            "description" to desc,
+            "type" to type
+        )
+        db.collection("important_events").document(eventId).update(updates)
+            .addOnSuccessListener {
+                if (isAdded) Toast.makeText(requireContext(), "Event updated!", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener {
+                if (isAdded) Toast.makeText(requireContext(), "Failed to update event", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun confirmDeleteEvent(event: ImportantEvent) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Delete Event")
+            .setMessage("Are you sure you want to delete '${event.title}'?")
+            .setPositiveButton("Delete") { _, _ ->
+                db.collection("important_events").document(event.eventId).delete()
+                    .addOnSuccessListener {
+                        if (isAdded) Toast.makeText(requireContext(), "Event deleted!", Toast.LENGTH_SHORT).show()
+                    }
+                    .addOnFailureListener {
+                        if (isAdded) Toast.makeText(requireContext(), "Failed to delete event", Toast.LENGTH_SHORT).show()
+                    }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     private fun calculateExpectedTopic(userCourse: UserCourse, date: Calendar): TopicDetail? {
         val courseTopics = availableTopics.filter { it.planId == userCourse.planId }.sortedBy { it.topicOrder }
         if (courseTopics.isEmpty()) return null
@@ -378,10 +450,116 @@ class ScheduleFragment : Fragment() {
         db.collection("time_slots").document(slotId).set(timeSlot)
             .addOnSuccessListener {
                 if (isAdded) {
-                    Toast.makeText(context, "Time Slot Added", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Time Slot Saved", Toast.LENGTH_SHORT).show()
                     com.example.studybuddy.notification.NotificationHelper.scheduleTimeSlotAlarm(requireContext(), timeSlot)
                 }
             }
+    }
+
+    private fun showManageTimeSlotsDialog() {
+        if (timeSlots.isEmpty()) {
+            Toast.makeText(requireContext(), "No time slots available", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val options = timeSlots.map { "${it.name} (${it.timeString})" }.toTypedArray()
+        AlertDialog.Builder(requireContext())
+            .setTitle("Select Time Slot to Manage")
+            .setItems(options) { _, which ->
+                val slot = timeSlots[which]
+                showTimeSlotActionDialog(slot)
+            }
+            .setPositiveButton("Close", null)
+            .show()
+    }
+
+    private fun showTimeSlotActionDialog(slot: com.example.studybuddy.model.TimeSlot) {
+        val actions = arrayOf("Edit", "Delete")
+        AlertDialog.Builder(requireContext())
+            .setTitle(slot.name)
+            .setItems(actions) { _, which ->
+                if (which == 0) {
+                    showEditTimeSlotDialog(slot)
+                } else {
+                    deleteTimeSlot(slot)
+                }
+            }
+            .show()
+    }
+
+    private fun showEditTimeSlotDialog(slot: com.example.studybuddy.model.TimeSlot) {
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_add_time_slot, null)
+        val nameInput = dialogView.findViewById<android.widget.EditText>(R.id.slotNameInput)
+        val cbSun = dialogView.findViewById<android.widget.CheckBox>(R.id.cbSun)
+        val cbMon = dialogView.findViewById<android.widget.CheckBox>(R.id.cbMon)
+        val cbTue = dialogView.findViewById<android.widget.CheckBox>(R.id.cbTue)
+        val cbWed = dialogView.findViewById<android.widget.CheckBox>(R.id.cbWed)
+        val cbThu = dialogView.findViewById<android.widget.CheckBox>(R.id.cbThu)
+        val cbFri = dialogView.findViewById<android.widget.CheckBox>(R.id.cbFri)
+        val cbSat = dialogView.findViewById<android.widget.CheckBox>(R.id.cbSat)
+
+        nameInput.setText(slot.name)
+        if (slot.selectedDays.contains(Calendar.SUNDAY)) cbSun.isChecked = true
+        if (slot.selectedDays.contains(Calendar.MONDAY)) cbMon.isChecked = true
+        if (slot.selectedDays.contains(Calendar.TUESDAY)) cbTue.isChecked = true
+        if (slot.selectedDays.contains(Calendar.WEDNESDAY)) cbWed.isChecked = true
+        if (slot.selectedDays.contains(Calendar.THURSDAY)) cbThu.isChecked = true
+        if (slot.selectedDays.contains(Calendar.FRIDAY)) cbFri.isChecked = true
+        if (slot.selectedDays.contains(Calendar.SATURDAY)) cbSat.isChecked = true
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Edit Time Slot")
+            .setView(dialogView)
+            .setPositiveButton("Next") { _, _ ->
+                val slotName = nameInput.text.toString().trim()
+                val selectedDays = mutableListOf<Int>()
+                if (cbSun.isChecked) selectedDays.add(Calendar.SUNDAY)
+                if (cbMon.isChecked) selectedDays.add(Calendar.MONDAY)
+                if (cbTue.isChecked) selectedDays.add(Calendar.TUESDAY)
+                if (cbWed.isChecked) selectedDays.add(Calendar.WEDNESDAY)
+                if (cbThu.isChecked) selectedDays.add(Calendar.THURSDAY)
+                if (cbFri.isChecked) selectedDays.add(Calendar.FRIDAY)
+                if (cbSat.isChecked) selectedDays.add(Calendar.SATURDAY)
+
+                if (slotName.isNotEmpty() && selectedDays.isNotEmpty()) {
+                    val calendar = Calendar.getInstance()
+                    TimePickerDialog(requireContext(), { _, hourOfDay, minute ->
+                        updateTimeSlot(slot.slotId, slotName, hourOfDay, minute, selectedDays)
+                    }, slot.hour, slot.minute, true).show()
+                } else {
+                    Toast.makeText(requireContext(), "Name and at least one day required", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun updateTimeSlot(slotId: String, name: String, hour: Int, minute: Int, selectedDays: List<Int>) {
+        val timeString = String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
+        val updates = mapOf(
+            "name" to name,
+            "hour" to hour,
+            "minute" to minute,
+            "timeString" to timeString,
+            "selectedDays" to selectedDays
+        )
+        db.collection("time_slots").document(slotId).update(updates)
+            .addOnSuccessListener {
+                if (isAdded) Toast.makeText(requireContext(), "Time Slot Updated", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun deleteTimeSlot(slot: com.example.studybuddy.model.TimeSlot) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Delete Time Slot")
+            .setMessage("Are you sure you want to delete '${slot.name}'?")
+            .setPositiveButton("Delete") { _, _ ->
+                db.collection("time_slots").document(slot.slotId).delete()
+                    .addOnSuccessListener {
+                        if (isAdded) Toast.makeText(requireContext(), "Time Slot Deleted", Toast.LENGTH_SHORT).show()
+                    }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     override fun onDestroyView() {

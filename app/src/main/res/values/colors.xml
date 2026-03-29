@@ -12,6 +12,13 @@
     <color name="background_white">#FAFAFA</color>
     <color name="surface_white">#FFFFFF</color>
 
+    <!-- Dark Mode Colors (Black and Light Blue) -->
+    <color name="dark_background">#0C0C0C</color>
+    <color name="dark_surface">#1A1A1A</color>
+    <color name="light_blue_primary">#29B6F6</color>
+    <color name="light_blue_variant">#0288D1</color>
+    <color name="light_blue_secondary">#81D4FA</color>
+
     <!-- Aliases for backwards compatibility -->
     <color name="lime_primary">#8BC34A</color>
     <color name="lime_primary_variant">#689F38</color>

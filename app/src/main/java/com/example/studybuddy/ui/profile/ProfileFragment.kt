@@ -27,10 +27,13 @@ class ProfileFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         loadUserData()
-        loadUserBadges()
 
         binding.editProfileButton.setOnClickListener {
             findNavController().navigate(R.id.action_profileFragment_to_editProfileFragment)
+        }
+
+        binding.settingsButton.setOnClickListener {
+            findNavController().navigate(R.id.action_profileFragment_to_settingsFragment)
         }
 
         binding.logoutButton.setOnClickListener {
@@ -48,56 +51,17 @@ class ProfileFragment : Fragment() {
             if (_binding != null && doc != null && doc.exists()) {
                 binding.userNameTextView.text = doc.getString("name") ?: "Student"
                 binding.userDescriptionTextView.text = doc.getString("description") ?: "No description set"
+                val b64 = doc.getString("profilePictureBase64")
+                if (!b64.isNullOrEmpty()) {
+                    try {
+                        val bytes = android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
+                        val bmp = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                        binding.profileImageView.setImageBitmap(bmp)
+                    } catch (e: Exception) {
+                        android.util.Log.e("ProfileFragment", "Error decoding image", e)
+                    }
+                }
             }
-        }
-    }
-
-    private fun loadUserBadges() {
-        val userId = auth.currentUser?.uid ?: return
-        
-        db.collection("user_courses")
-            .whereEqualTo("userId", userId)
-            .addSnapshotListener { snapshot, _ ->
-                if (_binding == null || snapshot == null) return@addSnapshotListener
-                
-                val completedPlans = snapshot.documents.mapNotNull { doc ->
-                    val course = doc.toObject(UserCourse::class.java)
-                    if (course?.currentTopicId == "COMPLETED") course.planId else null
-                }.toSet()
-
-                updateBadgesUI(completedPlans)
-            }
-    }
-
-    private fun updateBadgesUI(completedPlans: Set<String>) {
-        if (_binding == null) return
-
-        // Update DAA Badge
-        if ("daa_plan" in completedPlans) {
-            binding.badgeDaa.setImageResource(R.drawable.ic_badge_daa)
-        } else {
-            binding.badgeDaa.setImageResource(R.drawable.ic_badge_locked)
-        }
-
-        // Update JAVA Badge
-        if ("java_plan" in completedPlans) {
-            binding.badgeJava.setImageResource(R.drawable.ic_badge_java)
-        } else {
-            binding.badgeJava.setImageResource(R.drawable.ic_badge_locked)
-        }
-
-        // Update DSA Badge
-        if ("dsa_plan" in completedPlans) {
-            binding.badgeDsa.setImageResource(R.drawable.ic_badge_dsa)
-        } else {
-            binding.badgeDsa.setImageResource(R.drawable.ic_badge_locked)
-        }
-
-        // Update WEB Badge
-        if ("web_plan" in completedPlans) {
-            binding.badgeWeb.setImageResource(R.drawable.ic_badge_web)
-        } else {
-            binding.badgeWeb.setImageResource(R.drawable.ic_badge_locked)
         }
     }
 

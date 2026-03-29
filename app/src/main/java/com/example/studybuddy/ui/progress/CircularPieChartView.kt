@@ -33,7 +33,7 @@ class CircularPieChartView @JvmOverloads constructor(
     }
 
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.BLACK
+        color = ContextCompat.getColor(context, R.color.black)
         textSize = 60f
         textAlign = Paint.Align.CENTER
         isFakeBoldText = true
@@ -41,9 +41,25 @@ class CircularPieChartView @JvmOverloads constructor(
 
     private val rectF = RectF()
 
-    fun setProgress(value: Float) {
-        progress = value.coerceIn(0f, 100f)
-        invalidate()
+    private var animator: android.animation.ValueAnimator? = null
+
+    fun setProgress(value: Float, animate: Boolean = true) {
+        val targetProgress = value.coerceIn(0f, 100f)
+        if (animate) {
+            animator?.cancel()
+            animator = android.animation.ValueAnimator.ofFloat(progress, targetProgress).apply {
+                duration = 1000
+                interpolator = android.view.animation.DecelerateInterpolator()
+                addUpdateListener { animation ->
+                    progress = animation.animatedValue as Float
+                    invalidate()
+                }
+                start()
+            }
+        } else {
+            progress = targetProgress
+            invalidate()
+        }
     }
 
     override fun onDraw(canvas: Canvas) {

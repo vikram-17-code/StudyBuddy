@@ -6,7 +6,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.studybuddy.databinding.ItemImportantEventBinding
 import com.example.studybuddy.model.ImportantEvent
 
-class ImportantEventAdapter : RecyclerView.Adapter<ImportantEventAdapter.ViewHolder>() {
+class ImportantEventAdapter(private val onEventClicked: (ImportantEvent) -> Unit = {}) : RecyclerView.Adapter<ImportantEventAdapter.ViewHolder>() {
 
     private var items: List<ImportantEvent> = emptyList()
 
@@ -31,6 +31,10 @@ class ImportantEventAdapter : RecyclerView.Adapter<ImportantEventAdapter.ViewHol
             binding.eventTitle.text = event.title
             binding.eventDescription.text = event.description
             binding.eventTypeTag.text = event.type.uppercase()
+            
+            binding.root.setOnClickListener {
+                onEventClicked(event)
+            }
         }
     }
 }

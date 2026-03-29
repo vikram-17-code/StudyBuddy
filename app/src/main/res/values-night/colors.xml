@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Map "black" to white in dark mode so hardcoded text flips colors -->
+    <color name="black">#FFFFFF</color>
+    <color name="white">#121212</color>
+
+    <!-- Map "green_..." to light blue when in dark mode -->
+    <color name="green_primary">#29B6F6</color>
+    <color name="green_primary_variant">#0288D1</color>
+    <color name="green_secondary">#81D4FA</color>
+    <color name="green_accent">#121212</color>
+
+    <!-- Backgrounds -->
+    <color name="background_white">#0C0C0C</color>
+    <color name="surface_white">#1A1A1A</color>
+
+    <color name="lime_primary">#29B6F6</color>
+    <color name="lime_primary_variant">#0288D1</color>
+    <color name="lime_secondary">#81D4FA</color>
+    <color name="lime_accent">#121212</color>
+</resources>

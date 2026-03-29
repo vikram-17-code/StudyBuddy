@@ -17,9 +17,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // Force Light Mode globally
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+        val prefs = getSharedPreferences("study_buddy_prefs", android.content.Context.MODE_PRIVATE)
+        if (prefs.getBoolean("dark_mode", false)) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+        } else {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+        }
 
         enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)

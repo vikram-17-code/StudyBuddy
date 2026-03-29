@@ -11,6 +11,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import android.widget.ArrayAdapter
+import android.app.DatePickerDialog
+import java.util.Calendar
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
@@ -44,6 +47,22 @@ class EditProfileFragment : Fragment() {
         
         loadCurrentData()
 
+        val genderOptions = arrayOf("Male", "Female", "Other", "Prefer not to say")
+        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, genderOptions)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.genderSpinner.adapter = adapter
+
+        binding.editDobEditText.setOnClickListener {
+            val c = Calendar.getInstance()
+            val year = c.get(Calendar.YEAR)
+            val month = c.get(Calendar.MONTH)
+            val day = c.get(Calendar.DAY_OF_MONTH)
+            DatePickerDialog(requireContext(), { _, y, m, d ->
+                val dob = String.format("%02d/%02d/%04d", d, m + 1, y)
+                binding.editDobEditText.setText(dob)
+            }, year, month, day).show()
+        }
+
         binding.changePhotoButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_PICK)
             intent.type = "image/*"
@@ -66,6 +85,29 @@ class EditProfileFragment : Fragment() {
                 if (_binding != null && doc.exists()) {
                     binding.editNameEditText.setText(doc.getString("name"))
                     binding.editDescriptionEditText.setText(doc.getString("description"))
+                    
+                    val dob = doc.getString("dob")
+                    if (!dob.isNullOrEmpty()) {
+                        binding.editDobEditText.setText(dob)
+                    }
+
+                    val gender = doc.getString("gender")
+                    if (!gender.isNullOrEmpty()) {
+                        val genderOptions = arrayOf("Male", "Female", "Other", "Prefer not to say")
+                        val idx = genderOptions.indexOf(gender)
+                        if (idx >= 0) binding.genderSpinner.setSelection(idx)
+                    }
+
+                    val b64 = doc.getString("profilePictureBase64")
+                    if (!b64.isNullOrEmpty()) {
+                        try {
+                            val bytes = android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
+                            val bmp = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            binding.editProfileImageView.setImageBitmap(bmp)
+                        } catch (e: Exception) {
+                            Log.e("EditProfile", "Error decoding image", e)
+                        }
+                    }
                 }
             }
             .addOnFailureListener { e ->
@@ -94,22 +136,44 @@ class EditProfileFragment : Fragment() {
 
         val updates = hashMapOf<String, Any>(
             "name" to newName,
-            "description" to newDescription
+            "description" to newDescription,
+            "dob" to binding.editDobEditText.text.toString().trim(),
+            "gender" to binding.genderSpinner.selectedItem.toString()
         )
         
+        if (selectedImageUri != null) {
+            Thread {
+                try {
+                    val bitmap = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                        android.graphics.ImageDecoder.decodeBitmap(android.graphics.ImageDecoder.createSource(requireContext().contentResolver, selectedImageUri!!))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        android.provider.MediaStore.Images.Media.getBitmap(requireContext().contentResolver, selectedImageUri!!)
+                    }
+                    val scaled = android.graphics.Bitmap.createScaledBitmap(bitmap, 200, 200, true)
+                    val baos = java.io.ByteArrayOutputStream()
+                    scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, baos)
+                    val b64 = android.util.Base64.encodeToString(baos.toByteArray(), android.util.Base64.NO_WRAP)
+                    updates["profilePictureBase64"] = b64
+                } catch (e: Exception) {
+                    Log.e("EditProfile", "Error encoding image", e)
+                }
+                Handler(Looper.getMainLooper()).post {
+                    pushUpdatesToFirestore(userId, updates)
+                }
+            }.start()
+        } else {
+            pushUpdatesToFirestore(userId, updates)
+        }
+    }
+
+    private fun pushUpdatesToFirestore(userId: String, updates: HashMap<String, Any>) {
         db.collection("users").document(userId)
             .set(updates, SetOptions.merge())
             .addOnSuccessListener {
-                if (isAdded && _binding != null) {
-                    // Change text to "Saved Changes" on success
+                if (_binding != null) {
                     binding.saveProfileButton.text = "Saved Changes"
-                    
-                    // Small delay so user can see the "Saved Changes" message before going back
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        if (isAdded && _binding != null) {
-                            findNavController().navigateUp()
-                        }
-                    }, 1000)
+                    findNavController().navigateUp()
                 }
             }
             .addOnFailureListener { e ->

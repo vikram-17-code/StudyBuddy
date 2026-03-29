@@ -1,22 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5">
+    android:background="?android:attr/windowBackground"
+    android:fillViewport="true">
 
-    <com.google.android.material.appbar.AppBarLayout
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/transparent"
-        app:elevation="0dp">
+        android:orientation="vertical"
+        android:paddingTop="24dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_horizontal"
             android:orientation="vertical"
-            android:padding="24dp">
+            android:paddingHorizontal="24dp">
 
             <TextView
                 android:layout_width="match_parent"
@@ -45,15 +46,15 @@
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="24dp"
                         android:text="Overall Study Completion"
-                        android:textColor="#616161"
+                        android:textColor="@color/black"
                         android:textSize="18sp"
                         android:fontFamily="sans-serif-medium" />
 
                     <!-- Custom Pie Chart View -->
                     <com.example.studybuddy.ui.progress.CircularPieChartView
                         android:id="@+id/overallPieChart"
-                        android:layout_width="200dp"
-                        android:layout_height="200dp" />
+                        android:layout_width="100dp"
+                        android:layout_height="100dp" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -72,22 +73,86 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
                             android:text="Completed Tasks"
-                            android:textColor="#757575"
+                            android:textColor="@color/black"
                             android:textSize="14sp" />
 
                     </LinearLayout>
 
+                    <TextView
+                        android:id="@+id/enrollmentStatsText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="0 Courses Enrolled | 0 Completed"
+                        android:textColor="@color/black"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/encouragementText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Keep going to unlock badges!"
+                        android:textColor="#4CAF50"
+                        android:textSize="14sp"
+                        android:textStyle="italic"
+                        android:textAlignment="center" />
+
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Your Badges"
+                android:textColor="@color/black"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginTop="32dp"
+                android:layout_marginBottom="12dp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="2dp"
+                app:strokeWidth="0dp">
+
+                <GridLayout
+                    android:id="@+id/badgesGridLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:columnCount="4"
+                    android:padding="16dp"
+                    android:alignmentMode="alignMargins"
+                    android:useDefaultMargins="true">
+                    
+                    <!-- Badges will be updated dynamically in code in chronological order -->
+                    
+                </GridLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Active Courses"
+                android:textColor="@color/black"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginTop="32dp"
+                android:layout_marginBottom="12dp" />
+
         </LinearLayout>
-    </com.google.android.material.appbar.AppBarLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/courseProgressRecyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:paddingBottom="80dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/courseProgressRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"
+            android:clipToPadding="false"
+            android:paddingBottom="80dp" />
 
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+    </LinearLayout>
+
+</androidx.core.widget.NestedScrollView>
