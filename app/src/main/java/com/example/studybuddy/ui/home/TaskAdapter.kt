@@ -15,9 +15,10 @@ class TaskAdapter(
     private val onCompleteClick: (UserCourse, TopicDetail) -> Unit = { _, _ -> }
 ) : RecyclerView.Adapter<TaskAdapter.TaskViewHolder>() {
 
-    private var items: List<Pair<UserCourse, TopicDetail>> = emptyList()
+    // Pair of UserCourse and TopicDetail, and a String for Course Name
+    private var items: List<Triple<UserCourse, TopicDetail, String>> = emptyList()
 
-    fun submitList(newItems: List<Pair<UserCourse, TopicDetail>>) {
+    fun submitList(newItems: List<Triple<UserCourse, TopicDetail, String>>) {
         items = newItems
         notifyDataSetChanged()
     }
@@ -28,15 +29,15 @@ class TaskAdapter(
     }
 
     override fun onBindViewHolder(holder: TaskViewHolder, position: Int) {
-        val (userCourse, topic) = items[position]
-        holder.bind(userCourse, topic)
+        val (userCourse, topic, courseName) = items[position]
+        holder.bind(userCourse, topic, courseName)
     }
 
     override fun getItemCount(): Int = items.size
 
     inner class TaskViewHolder(private val binding: ItemTaskBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(userCourse: UserCourse, topic: TopicDetail) {
-            binding.courseNameTextView.text = userCourse.planId.replace("_plan", "").uppercase()
+        fun bind(userCourse: UserCourse, topic: TopicDetail, courseName: String) {
+            binding.courseNameTextView.text = courseName
             binding.topicNameTextView.text = topic.topicName
             
             if (showDayInfo) {
@@ -46,7 +47,7 @@ class TaskAdapter(
                 binding.dayNumberTextView.visibility = View.GONE
             }
 
-            binding.materialLinkTextView.text = "View Study Material"
+            binding.materialLinkTextView.text = if (topic.materialLink.isNotEmpty()) "View Study Material" else ""
             
             binding.root.setOnClickListener {
                 onTaskClick(userCourse)

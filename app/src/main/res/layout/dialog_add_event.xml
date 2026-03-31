@@ -12,12 +12,14 @@
         android:layout_height="wrap_content"
         android:hint="Event Title (e.g. DAA Exam)"
         app:boxStrokeColor="@color/green_primary"
-        app:hintTextColor="@color/green_primary">
+        app:hintTextColor="@color/green_primary"
+        app:placeholderTextColor="?android:attr/textColorSecondary">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/eventTitleInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:textColor="?android:attr/textColorPrimary"
             android:inputType="textCapWords" />
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -28,12 +30,14 @@
         android:layout_marginTop="12dp"
         android:hint="Description (optional)"
         app:boxStrokeColor="@color/green_primary"
-        app:hintTextColor="@color/green_primary">
+        app:hintTextColor="@color/green_primary"
+        app:placeholderTextColor="?android:attr/textColorSecondary">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/eventDescInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:textColor="?android:attr/textColorPrimary"
             android:inputType="textMultiLine"
             android:lines="2" />
     </com.google.android.material.textfield.TextInputLayout>
@@ -43,7 +47,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="Event Type"
-        android:textColor="#757575"
+        android:textColor="?android:attr/textColorSecondary"
         android:textSize="12sp" />
 
     <Spinner

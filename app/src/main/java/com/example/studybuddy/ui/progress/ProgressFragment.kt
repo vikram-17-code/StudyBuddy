@@ -9,6 +9,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.studybuddy.R
 import com.example.studybuddy.databinding.FragmentProgressBinding
+import com.example.studybuddy.model.CoursePlan
 import com.example.studybuddy.model.TopicDetail
 import com.example.studybuddy.model.UserCourse
 import com.google.firebase.auth.FirebaseAuth
@@ -21,7 +22,11 @@ class ProgressFragment : Fragment() {
     private val auth = FirebaseAuth.getInstance()
     private lateinit var adapter: CourseProgressAdapter
 
-    private val availableTopics = com.example.studybuddy.data.CourseData.availableTopics
+    private val staticTopics = com.example.studybuddy.data.CourseData.availableTopics
+    private val staticPlans = com.example.studybuddy.data.CourseData.availableCoursePlans
+
+    private var customTopics: List<TopicDetail> = emptyList()
+    private var customPlans: List<CoursePlan> = emptyList()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentProgressBinding.inflate(inflater, container, false)
@@ -31,7 +36,7 @@ class ProgressFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
-        loadProgress()
+        loadCustomDataAndProgress()
         loadUserBadges()
     }
 
@@ -46,25 +51,43 @@ class ProgressFragment : Fragment() {
         binding.courseProgressRecyclerView.adapter = adapter
     }
 
-    private fun loadProgress() {
+    private fun loadCustomDataAndProgress() {
         val userId = auth.currentUser?.uid ?: return
         
+        // Load custom plans and topics first, then load progress
+        db.collection("course_plans").whereEqualTo("userId", userId).get().addOnSuccessListener { plansSnap ->
+            customPlans = plansSnap.toObjects(CoursePlan::class.java)
+            
+            db.collection("topics").get().addOnSuccessListener { topicsSnap ->
+                customTopics = topicsSnap.toObjects(TopicDetail::class.java)
+                loadProgress()
+            }
+        }
+    }
+
+    private fun loadProgress() {
+        val userId = auth.currentUser?.uid ?: return
+        val allTopics = staticTopics + customTopics
+        val allPlans = staticPlans + customPlans
+
         db.collection("user_courses")
             .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, _ ->
                 if (_binding == null || !isAdded) return@addSnapshotListener
                 if (snapshot != null) {
-                    val userCourses = snapshot.toObjects(UserCourse::class.java).mapIndexed { index, course ->
-                        course.copy(userCourseId = snapshot.documents[index].id)
-                    }
-                    val displayList = mutableListOf<Triple<UserCourse, List<TopicDetail>, Int>>()
+                    val userCourses = snapshot.map { it.toObject(UserCourse::class.java).copy(userCourseId = it.id) }
+                    
+                    val displayList = mutableListOf<CourseProgressItem>()
                     var totalCompletion = 0f
                     var completedCount = 0
 
                     userCourses.forEach { userCourse ->
-                        val topics = availableTopics.filter { it.planId == userCourse.planId }
+                        val topics = allTopics.filter { it.planId == userCourse.planId }
+                        val plan = allPlans.find { it.planId == userCourse.planId }
+                        val courseName = plan?.courseName ?: userCourse.planId.replace("_plan", "").uppercase()
+                        
                         val progress = calculateCourseProgress(userCourse, topics)
-                        displayList.add(Triple(userCourse, topics, progress))
+                        displayList.add(CourseProgressItem(userCourse, topics, courseName, progress))
                         totalCompletion += progress
                         if (progress == 100 || userCourse.currentTopicId == "COMPLETED") {
                             completedCount++
@@ -114,13 +137,10 @@ class ProgressFragment : Fragment() {
 
     private fun loadUserBadges() {
         val userId = auth.currentUser?.uid ?: return
-        
         db.collection("user_courses")
             .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, _ ->
                 if (_binding == null || snapshot == null) return@addSnapshotListener
-                
-                // Group the completed courses by their lastStudyDate (chronological)
                 val completedCourses = snapshot.documents.mapNotNull { doc ->
                     val course = doc.toObject(UserCourse::class.java)
                     if (course?.currentTopicId == "COMPLETED") course else null
@@ -132,9 +152,7 @@ class ProgressFragment : Fragment() {
 
     private fun updateBadgesUI(completedCourses: List<UserCourse>) {
         if (_binding == null) return
-
         binding.badgesGridLayout.removeAllViews()
-
         if (completedCourses.isEmpty()) {
             binding.badgesGridLayout.visibility = View.GONE
             return
@@ -147,7 +165,6 @@ class ProgressFragment : Fragment() {
             val badgeIcon = badgeView.findViewById<android.widget.ImageView>(R.id.badgeIcon)
             val badgeTitle = badgeView.findViewById<android.widget.TextView>(R.id.badgeTitle)
             
-            // Map planId to drawable
             val iconResId = when (course.planId) {
                 "daa_plan" -> R.drawable.ic_badge_daa
                 "java_plan" -> R.drawable.ic_badge_java
@@ -160,12 +177,12 @@ class ProgressFragment : Fragment() {
                 "oss_plan" -> R.drawable.ic_badge_oss
                 "ai_plan" -> R.drawable.ic_badge_ai
                 "animation_plan" -> R.drawable.ic_badge_animation
-                else -> R.drawable.ic_badge_java
+                else -> R.drawable.ic_badge_java // Default badge for custom courses
             }
             
             badgeIcon.setImageResource(iconResId)
-            val shortName = course.planId.replace("_plan", "").uppercase()
-            badgeTitle.text = shortName
+            val plan = (staticPlans + customPlans).find { it.planId == course.planId }
+            badgeTitle.text = plan?.courseName ?: course.planId.replace("_plan", "").uppercase()
 
             binding.badgesGridLayout.addView(badgeView)
         }

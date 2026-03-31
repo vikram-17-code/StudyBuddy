@@ -36,7 +36,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="User Name"
-            android:textColor="@color/black"
+            android:textColor="?android:attr/textColorPrimary"
             android:textSize="24sp"
             android:textStyle="bold" />
 
@@ -46,7 +46,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:text="No description set"
-            android:textColor="#757575"
+            android:textColor="?android:attr/textColorSecondary"
             android:textSize="15sp"
             android:textAlignment="center" />
 
@@ -56,10 +56,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="user@example.com"
-            android:textColor="#9E9E9E"
+            android:textColor="?android:attr/textColorSecondary"
             android:textSize="14sp" />
-
-
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/editProfileButton"

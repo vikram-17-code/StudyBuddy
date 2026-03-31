@@ -15,7 +15,8 @@
         <item name="colorSurface">@color/dark_surface</item>
 
         <!-- Material Components theme attributes -->
-        <item name="colorOnSurface">@color/white</item>
-        <item name="colorOnBackground">@color/white</item>
+        <!-- Note: Using @color/black here because in values-night/colors.xml, 'black' is mapped to #FFFFFF -->
+        <item name="colorOnSurface">@color/black</item>
+        <item name="colorOnBackground">@color/black</item>
     </style>
 </resources>

@@ -1,164 +1,69 @@
 package com.example.studybuddy.ui.tasks
 
-import android.app.AlarmManager
-import android.app.PendingIntent
 import android.app.TimePickerDialog
-import android.content.Context
-import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
-import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.studybuddy.R
-import com.example.studybuddy.databinding.FragmentAddTaskBinding
+import com.example.studybuddy.databinding.FragmentAddCustomCourseBinding
+import com.example.studybuddy.databinding.ItemSubtopicInputBinding
 import com.example.studybuddy.model.CoursePlan
 import com.example.studybuddy.model.TopicDetail
 import com.example.studybuddy.model.UserCourse
-import com.example.studybuddy.notification.NotificationReceiver
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.util.*
 
-class AddTaskFragment : Fragment() {
+class AddCustomCourseFragment : Fragment() {
 
-    private var _binding: FragmentAddTaskBinding? = null
+    private var _binding: FragmentAddCustomCourseBinding? = null
     private val binding get() = _binding!!
-    private lateinit var topicAdapter: TopicListAdapter
-    private var userTimeSlots: List<com.example.studybuddy.model.TimeSlot> = emptyList()
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-
-    private val availableCoursePlans = com.example.studybuddy.data.CourseData.availableCoursePlans
-    private val availableTopics = com.example.studybuddy.data.CourseData.availableTopics
+    private var userTimeSlots: List<com.example.studybuddy.model.TimeSlot> = emptyList()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        _binding = FragmentAddTaskBinding.inflate(inflater, container, false)
+        _binding = FragmentAddCustomCourseBinding.inflate(inflater, container, false)
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupRecyclerView()
-        checkUserEnrollment()
+        
+        addSubtopicRow() // Add one initial subtopic row
+
+        binding.addSubtopicButton.setOnClickListener {
+            addSubtopicRow()
+        }
 
         binding.addTimeSlotButton.setOnClickListener {
             showAddTimeSlotDialog()
         }
-        
+
+        binding.createCourseButton.setOnClickListener {
+            validateAndSaveCourse()
+        }
+
         loadTimeSlots()
-
-        binding.saveTaskButton.setOnClickListener {
-            confirmCoursePlan()
-        }
-
-        binding.customCourseButton.setOnClickListener {
-            findNavController().navigate(R.id.action_addTaskFragment_to_addCustomCourseFragment)
-        }
     }
 
-    private fun setupRecyclerView() {
-        topicAdapter = TopicListAdapter()
-        binding.topicsRecyclerView.apply {
-            layoutManager = LinearLayoutManager(requireContext())
-            adapter = topicAdapter
-        }
-    }
-
-    private fun checkUserEnrollment() {
-        val userId = auth.currentUser?.uid ?: return
-        db.collection("user_courses")
-            .whereEqualTo("userId", userId)
-            .get()
-            .addOnSuccessListener { documents ->
-                if (_binding == null) return@addOnSuccessListener
-                val enrolledPlanIds = documents.map { it.toObject(UserCourse::class.java).planId }.toSet()
-                setupCourseSpinner(enrolledPlanIds)
-            }
-    }
-
-    private fun setupCourseSpinner(enrolledPlanIds: Set<String>) {
-        val filteredPlans = availableCoursePlans.filter { it.planId !in enrolledPlanIds }
-        if (filteredPlans.isEmpty()) {
-            Toast.makeText(context, "Already joined all courses", Toast.LENGTH_SHORT).show()
-            // We don't navigate up here anymore because user can still create custom course
-        }
-
-        val names = filteredPlans.map { it.courseName }
-        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, names)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        binding.courseSpinner.adapter = adapter
-
-        binding.courseSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (filteredPlans.isEmpty()) return
-                val selectedPlanId = filteredPlans[position].planId
-                topicAdapter.submitList(availableTopics.filter { it.planId == selectedPlanId })
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-    }
-
-    private fun confirmCoursePlan() {
-        val userId = auth.currentUser?.uid ?: return
-        val selectedItem = binding.courseSpinner.selectedItem?.toString() ?: return
-        val selectedPlan = availableCoursePlans.find { it.courseName == selectedItem } ?: return
+    private fun addSubtopicRow() {
+        val rowBinding = ItemSubtopicInputBinding.inflate(layoutInflater, binding.subtopicsContainer, false)
         
-        val selectedSlotPos = binding.timeSlotSpinner.selectedItemPosition
-        if (userTimeSlots.isEmpty() || selectedSlotPos == AdapterView.INVALID_POSITION) {
-            Toast.makeText(context, "Please select or add a time slot", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val selectedSlot = userTimeSlots[selectedSlotPos]
-
-        binding.saveTaskButton.isEnabled = false
-
-        db.collection("user_courses")
-            .whereEqualTo("userId", userId)
-            .whereEqualTo("planId", selectedPlan.planId)
-            .get()
-            .addOnSuccessListener { documents ->
-                if (_binding == null || !isAdded) return@addOnSuccessListener
-                
-                if (!documents.isEmpty) {
-                    Toast.makeText(context, "Already enrolled in this course!", Toast.LENGTH_SHORT).show()
-                    binding.saveTaskButton.isEnabled = true
-                    return@addOnSuccessListener
-                }
-
-                val preferredSlot = selectedSlot.slotId
-                val firstTopic = availableTopics.find { it.planId == selectedPlan.planId && it.topicOrder == 1 }
-                
-                val userCourse = UserCourse(
-                    userCourseId = UUID.randomUUID().toString(),
-                    userId = userId,
-                    planId = selectedPlan.planId,
-                    currentTopicId = firstTopic?.topicId ?: "",
-                    currentDayNumber = 1,
-                    preferredSlot = preferredSlot
-                )
-
-                db.collection("user_courses")
-                    .document(userCourse.userCourseId)
-                    .set(userCourse)
-                    .addOnSuccessListener {
-                        if (_binding != null) {
-                            Toast.makeText(requireContext(), "Course Joined!", Toast.LENGTH_SHORT).show()
-                            findNavController().navigateUp()
-                        }
-                    }
-                    .addOnFailureListener {
-                        if (_binding != null) {
-                            binding.saveTaskButton.isEnabled = true
-                            Toast.makeText(requireContext(), "Failed to join course", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+        rowBinding.removeSubtopicButton.setOnClickListener {
+            if (binding.subtopicsContainer.childCount > 1) {
+                binding.subtopicsContainer.removeView(rowBinding.root)
+            } else {
+                Toast.makeText(context, "At least one subtopic is required", Toast.LENGTH_SHORT).show()
             }
+        }
+        
+        binding.subtopicsContainer.addView(rowBinding.root)
     }
 
     private fun loadTimeSlots() {
@@ -180,6 +85,101 @@ class AddTaskFragment : Fragment() {
                 } else {
                     binding.timeSlotSpinner.adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, listOf("No slots available"))
                 }
+            }
+    }
+
+    private fun validateAndSaveCourse() {
+        val userId = auth.currentUser?.uid ?: return
+        val courseName = binding.courseNameInput.text.toString().trim()
+        val courseWebsite = binding.courseWebsiteInput.text.toString().trim()
+        
+        if (courseName.isEmpty()) {
+            binding.courseNameInput.error = "Course name required"
+            return
+        }
+
+        val subtopics = mutableListOf<TopicDetail>()
+        val planId = UUID.randomUUID().toString()
+
+        for (i in 0 until binding.subtopicsContainer.childCount) {
+            val view = binding.subtopicsContainer.getChildAt(i)
+            val nameInput = view.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.subtopicNameInput)
+            val daysInput = view.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.requiredDaysInput)
+            val materialInput = view.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.materialLinkInput)
+
+            val name = nameInput.text.toString().trim()
+            val days = daysInput.text.toString().toIntOrNull() ?: 0
+            val material = materialInput.text.toString().trim()
+
+            if (name.isEmpty()) {
+                nameInput.error = "Subtopic name required"
+                return
+            }
+            if (days <= 0) {
+                daysInput.error = "Must be > 0"
+                return
+            }
+
+            subtopics.add(TopicDetail(
+                topicId = UUID.randomUUID().toString(),
+                planId = planId,
+                topicName = name,
+                requiredDays = days,
+                materialLink = material,
+                topicOrder = i + 1
+            ))
+        }
+
+        if (subtopics.isEmpty()) {
+            Toast.makeText(context, "Add at least one subtopic", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val selectedSlotPos = binding.timeSlotSpinner.selectedItemPosition
+        if (userTimeSlots.isEmpty() || selectedSlotPos < 0) {
+            Toast.makeText(context, "Please select or add a time slot", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val preferredSlot = userTimeSlots[selectedSlotPos].slotId
+
+        binding.createCourseButton.isEnabled = false
+        
+        // Save Course Plan
+        val coursePlan = CoursePlan(planId, courseName, courseWebsite, userId)
+        val batch = db.batch()
+        
+        val planRef = db.collection("course_plans").document(planId)
+        batch.set(planRef, coursePlan)
+
+        // Save Topics
+        subtopics.forEach { topic ->
+            val topicRef = db.collection("topics").document(topic.topicId)
+            batch.set(topicRef, topic)
+        }
+
+        // Enroll user in the course
+        val userCourseId = UUID.randomUUID().toString()
+        val userCourse = UserCourse(
+            userCourseId = userCourseId,
+            userId = userId,
+            planId = planId,
+            currentTopicId = subtopics[0].topicId,
+            currentDayNumber = 1,
+            preferredSlot = preferredSlot
+        )
+        val enrollmentRef = db.collection("user_courses").document(userCourseId)
+        batch.set(enrollmentRef, userCourse)
+
+        batch.commit()
+            .addOnSuccessListener {
+                if (_binding != null) {
+                    Toast.makeText(requireContext(), "Custom Course Created!", Toast.LENGTH_SHORT).show()
+                    findNavController().navigateUp()
+                }
+            }
+            .addOnFailureListener {
+                binding.createCourseButton.isEnabled = true
+                Toast.makeText(requireContext(), "Error saving course", Toast.LENGTH_SHORT).show()
             }
     }
 

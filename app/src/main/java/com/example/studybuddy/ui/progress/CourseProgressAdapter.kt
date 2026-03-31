@@ -7,13 +7,20 @@ import com.example.studybuddy.databinding.ItemCourseProgressBinding
 import com.example.studybuddy.model.TopicDetail
 import com.example.studybuddy.model.UserCourse
 
+data class CourseProgressItem(
+    val userCourse: UserCourse,
+    val topics: List<TopicDetail>,
+    val courseName: String,
+    val progress: Int
+)
+
 class CourseProgressAdapter(
     private val onItemClick: (UserCourse) -> Unit
 ) : RecyclerView.Adapter<CourseProgressAdapter.ViewHolder>() {
 
-    private var items: List<Triple<UserCourse, List<TopicDetail>, Int>> = emptyList()
+    private var items: List<CourseProgressItem> = emptyList()
 
-    fun submitList(newItems: List<Triple<UserCourse, List<TopicDetail>, Int>>) {
+    fun submitList(newItems: List<CourseProgressItem>) {
         items = newItems
         notifyDataSetChanged()
     }
@@ -24,22 +31,21 @@ class CourseProgressAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val (userCourse, topics, progress) = items[position]
-        holder.bind(userCourse, topics, progress)
+        holder.bind(items[position])
     }
 
     override fun getItemCount(): Int = items.size
 
     inner class ViewHolder(private val binding: ItemCourseProgressBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(userCourse: UserCourse, topics: List<TopicDetail>, progress: Int) {
-            binding.courseNameTextView.text = userCourse.planId.replace("_plan", "").uppercase()
-            binding.coursePieChart.setProgress(progress.toFloat())
+        fun bind(item: CourseProgressItem) {
+            binding.courseNameTextView.text = item.courseName
+            binding.coursePieChart.setProgress(item.progress.toFloat())
             
-            val currentTopic = topics.find { it.topicId == userCourse.currentTopicId }
+            val currentTopic = item.topics.find { it.topicId == item.userCourse.currentTopicId }
             binding.progressStatusTextView.text = "Current: ${currentTopic?.topicName ?: "Completed"}"
             
             binding.root.setOnClickListener {
-                onItemClick(userCourse)
+                onItemClick(item.userCourse)
             }
         }
     }

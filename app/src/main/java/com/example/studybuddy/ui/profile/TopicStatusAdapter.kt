@@ -5,6 +5,7 @@ import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.example.studybuddy.databinding.ItemTopicStatusBinding
 import com.example.studybuddy.model.TopicDetail
@@ -63,9 +64,22 @@ class TopicStatusAdapter(
             binding.statusIcon.setImageResource(iconRes)
 
             // Material Link
-            binding.viewMaterialButton.setOnClickListener {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(topic.materialLink))
-                it.context.startActivity(intent)
+            if (topic.materialLink.isNullOrEmpty()) {
+                binding.viewMaterialButton.text = "No material attached"
+                binding.viewMaterialButton.isEnabled = false
+                binding.viewMaterialButton.alpha = 0.5f
+            } else {
+                binding.viewMaterialButton.text = "Study Material"
+                binding.viewMaterialButton.isEnabled = true
+                binding.viewMaterialButton.alpha = 1.0f
+                binding.viewMaterialButton.setOnClickListener {
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(topic.materialLink))
+                        it.context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(it.context, "Invalid link", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
 
             // Mark as complete logic - only show for current topic if not completed

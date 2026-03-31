@@ -109,7 +109,17 @@
         android:id="@+id/addTaskFragment"
         android:name="com.example.studybuddy.ui.tasks.AddTaskFragment"
         android:title="Add Task"
-        tools:layout="@layout/fragment_add_task" />
+        tools:layout="@layout/fragment_add_task">
+        <action
+            android:id="@+id/action_addTaskFragment_to_addCustomCourseFragment"
+            app:destination="@id/addCustomCourseFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/addCustomCourseFragment"
+        android:name="com.example.studybuddy.ui.tasks.AddCustomCourseFragment"
+        android:title="Add Custom Course"
+        tools:layout="@layout/fragment_add_custom_course" />
 
     <fragment
         android:id="@+id/courseDetailFragment"

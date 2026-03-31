@@ -11,6 +11,7 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.studybuddy.databinding.FragmentCourseDetailBinding
+import com.example.studybuddy.model.CoursePlan
 import com.example.studybuddy.model.StudyHistory
 import com.example.studybuddy.model.TopicDetail
 import com.example.studybuddy.model.UserCourse
@@ -29,7 +30,11 @@ class CourseDetailFragment : Fragment() {
     private val db = FirebaseFirestore.getInstance()
     private lateinit var adapter: TopicStatusAdapter
 
-    private val availableTopics = com.example.studybuddy.data.CourseData.availableTopics
+    private val staticTopics = com.example.studybuddy.data.CourseData.availableTopics
+    private val staticPlans = com.example.studybuddy.data.CourseData.availableCoursePlans
+    
+    private var customTopics: List<TopicDetail> = emptyList()
+    private var customPlans: List<CoursePlan> = emptyList()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentCourseDetailBinding.inflate(inflater, container, false)
@@ -41,7 +46,7 @@ class CourseDetailFragment : Fragment() {
         val userCourseId = arguments?.getString("userCourseId") ?: return
         
         setupRecyclerView(userCourseId)
-        loadCourseDetails(userCourseId)
+        loadCustomData(userCourseId)
 
         binding.deleteCourseButton.setOnClickListener {
             showDeleteConfirmation(userCourseId)
@@ -56,13 +61,29 @@ class CourseDetailFragment : Fragment() {
         binding.curriculumRecyclerView.adapter = adapter
     }
 
+    private fun loadCustomData(id: String) {
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        db.collection("course_plans").whereEqualTo("userId", userId).get().addOnSuccessListener { plansSnap ->
+            customPlans = plansSnap.toObjects(CoursePlan::class.java)
+            db.collection("topics").get().addOnSuccessListener { topicsSnap ->
+                customTopics = topicsSnap.toObjects(TopicDetail::class.java)
+                loadCourseDetails(id)
+            }
+        }
+    }
+
     private fun loadCourseDetails(id: String) {
         db.collection("user_courses").document(id).addSnapshotListener { doc, _ ->
             if (_binding == null || doc == null || !doc.exists()) return@addSnapshotListener
             val userCourse = doc.toObject(UserCourse::class.java)?.copy(userCourseId = doc.id) ?: return@addSnapshotListener
-            val courseTopics = availableTopics.filter { it.planId == userCourse.planId }.sortedBy { it.topicOrder }
             
-            binding.detailCourseName.text = userCourse.planId.replace("_plan", "").uppercase()
+            val allTopics = staticTopics + customTopics
+            val allPlans = staticPlans + customPlans
+            
+            val courseTopics = allTopics.filter { it.planId == userCourse.planId }.sortedBy { it.topicOrder }
+            val plan = allPlans.find { it.planId == userCourse.planId }
+            
+            binding.detailCourseName.text = plan?.courseName ?: userCourse.planId.replace("_plan", "").uppercase()
             
             val progress = calculateProgress(userCourse, courseTopics)
             binding.courseDetailPieChart.setProgress(progress.toFloat())
@@ -99,17 +120,16 @@ class CourseDetailFragment : Fragment() {
         db.collection("user_courses").document(userCourseId).get().addOnSuccessListener { doc ->
             val userCourse = doc.toObject(UserCourse::class.java)?.copy(userCourseId = doc.id) ?: return@addOnSuccessListener
             
-            // 1. Log History
             val history = StudyHistory(UUID.randomUUID().toString(), userId, topic.topicId, Timestamp.now())
             db.collection("study_history").document(history.historyId).set(history)
 
-            // 2. Update Progress
             val updateData = mutableMapOf<String, Any>("lastStudyDate" to Timestamp.now())
 
             if (userCourse.currentDayNumber < topic.requiredDays) {
                 updateData["currentDayNumber"] = userCourse.currentDayNumber + 1
             } else {
-                val nextTopic = availableTopics.find { it.planId == userCourse.planId && it.topicOrder == topic.topicOrder + 1 }
+                val allTopics = staticTopics + customTopics
+                val nextTopic = allTopics.find { it.planId == userCourse.planId && it.topicOrder == topic.topicOrder + 1 }
                 if (nextTopic != null) {
                     updateData["currentTopicId"] = nextTopic.topicId
                     updateData["currentDayNumber"] = 1

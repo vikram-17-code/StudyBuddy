@@ -70,6 +70,7 @@
                 android:id="@+id/editNameEditText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:textColor="?android:attr/textColorPrimary"
                 android:inputType="textPersonName" />
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -86,6 +87,7 @@
                 android:id="@+id/editDescriptionEditText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:textColor="?android:attr/textColorPrimary"
                 android:gravity="top"
                 android:inputType="textMultiLine"
                 android:lines="3" />
@@ -104,6 +106,7 @@
                 android:id="@+id/editDobEditText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:textColor="?android:attr/textColorPrimary"
                 android:focusable="false"
                 android:cursorVisible="false"
                 android:inputType="none" />
@@ -152,7 +155,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="Cancel"
-            android:textColor="#757575" />
+            android:textColor="?android:attr/textColorSecondary" />
 
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

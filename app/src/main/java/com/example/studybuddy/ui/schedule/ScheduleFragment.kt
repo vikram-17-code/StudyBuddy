@@ -19,6 +19,7 @@ import com.applandeo.materialcalendarview.CalendarDay
 import com.applandeo.materialcalendarview.listeners.OnCalendarDayClickListener
 import com.example.studybuddy.R
 import com.example.studybuddy.databinding.FragmentScheduleBinding
+import com.example.studybuddy.model.CoursePlan
 import com.example.studybuddy.model.ImportantEvent
 import com.example.studybuddy.model.TopicDetail
 import com.example.studybuddy.model.UserCourse
@@ -40,7 +41,10 @@ class ScheduleFragment : Fragment() {
     private var selectedDate = Calendar.getInstance()
     private var timeSlots: List<com.example.studybuddy.model.TimeSlot> = emptyList()
 
-    private val availableTopics = com.example.studybuddy.data.CourseData.availableTopics
+    private val staticTopics = com.example.studybuddy.data.CourseData.availableTopics
+    private val staticPlans = com.example.studybuddy.data.CourseData.availableCoursePlans
+    private var customTopics: List<TopicDetail> = emptyList()
+    private var customPlans: List<CoursePlan> = emptyList()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentScheduleBinding.inflate(inflater, container, false)
@@ -52,6 +56,7 @@ class ScheduleFragment : Fragment() {
         setupRecyclers()
         loadAllEventsForCalendar()
         loadTimeSlots()
+        loadCustomData()
         
         selectedDate.set(Calendar.HOUR_OF_DAY, 0)
         selectedDate.set(Calendar.MINUTE, 0)
@@ -105,6 +110,20 @@ class ScheduleFragment : Fragment() {
         }
     }
 
+    private fun loadCustomData() {
+        val userId = auth.currentUser?.uid ?: return
+        db.collection("course_plans").whereEqualTo("userId", userId).addSnapshotListener { snapshot, _ ->
+            if (_binding == null || snapshot == null) return@addSnapshotListener
+            customPlans = snapshot.toObjects(CoursePlan::class.java)
+            loadActivitiesForDate(selectedDate)
+        }
+        db.collection("topics").addSnapshotListener { snapshot, _ ->
+            if (_binding == null || snapshot == null) return@addSnapshotListener
+            customTopics = snapshot.toObjects(TopicDetail::class.java)
+            loadActivitiesForDate(selectedDate)
+        }
+    }
+
     private fun loadAllEventsForCalendar() {
         val userId = auth.currentUser?.uid ?: return
         db.collection("important_events")
@@ -153,8 +172,9 @@ class ScheduleFragment : Fragment() {
             .get()
             .addOnSuccessListener { snapshot ->
                 if (_binding == null) return@addOnSuccessListener
-                val taskList = mutableListOf<Pair<UserCourse, TopicDetail>>()
+                val taskList = mutableListOf<Triple<UserCourse, TopicDetail, String>>()
                 val currentDayOfWeek = date.get(Calendar.DAY_OF_WEEK)
+                val allPlans = staticPlans + customPlans
                 
                 for (doc in snapshot) {
                     val userCourse = doc.toObject(UserCourse::class.java).copy(userCourseId = doc.id)
@@ -175,7 +195,9 @@ class ScheduleFragment : Fragment() {
                     if (userCourse.currentTopicId != "COMPLETED") {
                         val expectedTopic = calculateExpectedTopic(userCourse, date)
                         if (expectedTopic != null) {
-                            taskList.add(userCourse to expectedTopic)
+                            val plan = allPlans.find { it.planId == userCourse.planId }
+                            val courseName = plan?.courseName ?: userCourse.planId.replace("_plan", "").uppercase()
+                            taskList.add(Triple(userCourse, expectedTopic, courseName))
                         }
                     }
                 }
@@ -327,7 +349,8 @@ class ScheduleFragment : Fragment() {
     }
 
     private fun calculateExpectedTopic(userCourse: UserCourse, date: Calendar): TopicDetail? {
-        val courseTopics = availableTopics.filter { it.planId == userCourse.planId }.sortedBy { it.topicOrder }
+        val allTopics = staticTopics + customTopics
+        val courseTopics = allTopics.filter { it.planId == userCourse.planId }.sortedBy { it.topicOrder }
         if (courseTopics.isEmpty()) return null
 
         val startCal = Calendar.getInstance().apply {
