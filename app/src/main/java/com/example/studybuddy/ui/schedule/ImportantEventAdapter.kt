@@ -1,8 +1,11 @@
 package com.example.studybuddy.ui.schedule
 
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
+import com.example.studybuddy.R
 import com.example.studybuddy.databinding.ItemImportantEventBinding
 import com.example.studybuddy.model.ImportantEvent
 
@@ -32,6 +35,17 @@ class ImportantEventAdapter(private val onEventClicked: (ImportantEvent) -> Unit
             binding.eventDescription.text = event.description
             binding.eventTypeTag.text = event.type.uppercase()
             
+            val context = binding.root.context
+            val color = when (event.type.lowercase()) {
+                "exam" -> ContextCompat.getColor(context, R.color.color_exam)
+                "assignment" -> ContextCompat.getColor(context, R.color.color_assignment)
+                else -> ContextCompat.getColor(context, R.color.color_other)
+            }
+            
+            binding.eventTypeTag.backgroundTintList = ColorStateList.valueOf(color)
+            binding.eventIcon.imageTintList = ColorStateList.valueOf(color)
+            binding.root.strokeColor = color
+
             binding.root.setOnClickListener {
                 onEventClicked(event)
             }

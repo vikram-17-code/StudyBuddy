@@ -12,6 +12,14 @@
     <color name="background_white">#FAFAFA</color>
     <color name="surface_white">#FFFFFF</color>
 
+    <!-- Event Colors -->
+    <color name="color_exam">#E53935</color>
+    <color name="color_presentation">#FB8C00</color>
+    <color name="color_assignment">#FDD835</color>
+    <color name="color_meeting">#8E24AA</color>
+    <color name="color_task">#8BC34A</color>
+    <color name="color_other">#757575</color>
+
     <!-- Dark Mode Colors (Black and Light Blue) -->
     <color name="dark_background">#0C0C0C</color>
     <color name="dark_surface">#1A1A1A</color>

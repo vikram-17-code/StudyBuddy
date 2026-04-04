@@ -15,6 +15,7 @@ import com.example.studybuddy.databinding.ItemSubtopicInputBinding
 import com.example.studybuddy.model.CoursePlan
 import com.example.studybuddy.model.TopicDetail
 import com.example.studybuddy.model.UserCourse
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.util.*
@@ -142,22 +143,22 @@ class AddCustomCourseFragment : Fragment() {
         }
         val preferredSlot = userTimeSlots[selectedSlotPos].slotId
 
+        // OPTIMISTIC NAVIGATION
         binding.createCourseButton.isEnabled = false
+        binding.createCourseButton.text = "Redirecting..."
         
-        // Save Course Plan
+        // Save Course Plan in Background
         val coursePlan = CoursePlan(planId, courseName, courseWebsite, userId)
         val batch = db.batch()
         
         val planRef = db.collection("course_plans").document(planId)
         batch.set(planRef, coursePlan)
 
-        // Save Topics
         subtopics.forEach { topic ->
             val topicRef = db.collection("topics").document(topic.topicId)
             batch.set(topicRef, topic)
         }
 
-        // Enroll user in the course
         val userCourseId = UUID.randomUUID().toString()
         val userCourse = UserCourse(
             userCourseId = userCourseId,
@@ -170,17 +171,12 @@ class AddCustomCourseFragment : Fragment() {
         val enrollmentRef = db.collection("user_courses").document(userCourseId)
         batch.set(enrollmentRef, userCourse)
 
+        // Fire the batch and forget (Firestore handles sync)
         batch.commit()
-            .addOnSuccessListener {
-                if (_binding != null) {
-                    Toast.makeText(requireContext(), "Custom Course Created!", Toast.LENGTH_SHORT).show()
-                    findNavController().navigateUp()
-                }
-            }
-            .addOnFailureListener {
-                binding.createCourseButton.isEnabled = true
-                Toast.makeText(requireContext(), "Error saving course", Toast.LENGTH_SHORT).show()
-            }
+
+        // Instant redirect
+        Toast.makeText(requireContext(), "Custom Course '$courseName' Created!", Toast.LENGTH_SHORT).show()
+        findNavController().navigate(R.id.homeFragment)
     }
 
     private fun showAddTimeSlotDialog() {
@@ -194,7 +190,7 @@ class AddCustomCourseFragment : Fragment() {
         val cbFri = dialogView.findViewById<android.widget.CheckBox>(R.id.cbFri)
         val cbSat = dialogView.findViewById<android.widget.CheckBox>(R.id.cbSat)
         
-        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle("Add Time Slot")
             .setView(dialogView)
             .setPositiveButton("Next") { _, _ ->

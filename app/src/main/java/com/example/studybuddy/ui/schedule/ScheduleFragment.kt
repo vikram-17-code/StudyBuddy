@@ -134,8 +134,16 @@ class ScheduleFragment : Fragment() {
                 val calendarDays = events.map { event ->
                     val cal = Calendar.getInstance().apply { time = event.eventDate.toDate() }
                     val calendarDay = CalendarDay(cal)
-                    calendarDay.imageDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.ic_badge_locked)
-                    calendarDay.labelColor = R.color.green_primary
+                    
+                    val dotDrawable = when (event.type.lowercase()) {
+                        "exam" -> R.drawable.calendar_dot_exam
+                        "presentation" -> R.drawable.calendar_dot_presentation
+                        "assignment" -> R.drawable.calendar_dot_assignment
+                        "meeting" -> R.drawable.calendar_dot_meeting
+                        else -> R.drawable.ic_badge_locked
+                    }
+                    
+                    calendarDay.imageDrawable = ContextCompat.getDrawable(requireContext(), dotDrawable)
                     calendarDay
                 }
                 binding.calendarView.setCalendarDays(calendarDays)

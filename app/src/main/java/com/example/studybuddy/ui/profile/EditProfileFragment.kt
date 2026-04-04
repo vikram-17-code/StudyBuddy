@@ -17,7 +17,9 @@ import java.util.Calendar
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
+import com.example.studybuddy.R
 import com.example.studybuddy.databinding.FragmentEditProfileBinding
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -129,10 +131,8 @@ class EditProfileFragment : Fragment() {
             return
         }
 
-        // Show "Saving..." state instead of a spinner
         binding.saveProfileButton.isEnabled = false
         binding.saveProfileButton.text = "Saving..."
-        binding.saveProgressBar.visibility = View.GONE
 
         val updates = hashMapOf<String, Any>(
             "name" to newName,
@@ -168,24 +168,15 @@ class EditProfileFragment : Fragment() {
     }
 
     private fun pushUpdatesToFirestore(userId: String, updates: HashMap<String, Any>) {
+        // Fire and forget - Firestore handles offline sync
         db.collection("users").document(userId)
             .set(updates, SetOptions.merge())
-            .addOnSuccessListener {
-                if (_binding != null) {
-                    binding.saveProfileButton.text = "Saved Changes"
-                    findNavController().navigateUp()
-                }
-            }
-            .addOnFailureListener { e ->
-                if (isAdded && _binding != null) {
-                    // Reset UI state on failure
-                    binding.saveProfileButton.isEnabled = true
-                    binding.saveProfileButton.text = "Save Changes"
-                    
-                    Log.e("EditProfile", "Error updating profile", e)
-                    Toast.makeText(requireContext(), "Failed to update: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            }
+
+        // Optimistic redirect
+        if (_binding != null) {
+            Toast.makeText(requireContext(), "Profile Updated!", Toast.LENGTH_SHORT).show()
+            findNavController().navigate(R.id.profileFragment)
+        }
     }
 
     override fun onDestroyView() {

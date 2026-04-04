@@ -1,24 +1,35 @@
 package com.example.studybuddy.notification
 
 import android.app.AlarmManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.util.Log
 import com.example.studybuddy.model.TimeSlot
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import java.util.*
 
 object NotificationHelper {
 
+    const val CHANNEL_ID = "study_reminders_channel"
+
     fun scheduleTimeSlotAlarm(context: Context, timeSlot: TimeSlot) {
+        createNotificationChannel(context)
+
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
         val intent = Intent(context, NotificationReceiver::class.java).apply {
+            putExtra("slotId", timeSlot.slotId)
             putExtra("courseName", timeSlot.name)
-            putExtra("topicName", "Time to study!")
+            putExtra("hour", timeSlot.hour)
+            putExtra("minute", timeSlot.minute)
             putExtra("selectedDays", timeSlot.selectedDays.toIntArray())
         }
 
-        // Use a unique request code based on the slotId hash
         val requestCode = timeSlot.slotId.hashCode()
 
         val pendingIntent = PendingIntent.getBroadcast(
@@ -28,23 +39,73 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val calendar = Calendar.getInstance().apply {
-            timeInMillis = System.currentTimeMillis()
-            set(Calendar.HOUR_OF_DAY, timeSlot.hour)
-            set(Calendar.MINUTE, timeSlot.minute)
-            set(Calendar.SECOND, 0)
-            
-            // If the time has already passed today, schedule for tomorrow
-            if (timeInMillis <= System.currentTimeMillis()) {
-                add(Calendar.DAY_OF_YEAR, 1)
+        val nextTime = getNextOccurrence(timeSlot.hour, timeSlot.minute, timeSlot.selectedDays)
+
+        Log.d("NotificationHelper", "Scheduling for ${timeSlot.name} at ${nextTime.time}")
+
+        // Use setAlarmClock - most reliable on Samsung
+        val alarmClockInfo = AlarmManager.AlarmClockInfo(nextTime.timeInMillis, pendingIntent)
+        try {
+            alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+        } catch (e: Exception) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextTime.timeInMillis, pendingIntent)
+            } else {
+                alarmManager.setExact(AlarmManager.RTC_WAKEUP, nextTime.timeInMillis, pendingIntent)
             }
         }
+    }
 
-        alarmManager.setRepeating(
-            AlarmManager.RTC_WAKEUP,
-            calendar.timeInMillis,
-            AlarmManager.INTERVAL_DAY,
-            pendingIntent
-        )
+    fun scheduleAllAlarms(context: Context) {
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        FirebaseFirestore.getInstance().collection("time_slots")
+            .whereEqualTo("userId", userId)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                snapshot.toObjects(TimeSlot::class.java).forEach { slot ->
+                    scheduleTimeSlotAlarm(context, slot)
+                }
+            }
+    }
+
+    fun createNotificationChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Study Reminders"
+            val descriptionText = "Notifications for your study sessions"
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+                enableLights(true)
+                enableVibration(true)
+                setShowBadge(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+            }
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    fun getNextOccurrence(hour: Int, minute: Int, selectedDays: List<Int>): Calendar {
+        val now = Calendar.getInstance()
+        val target = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, minute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        if (target.timeInMillis <= now.timeInMillis) {
+            target.add(Calendar.DAY_OF_YEAR, 1)
+        }
+
+        if (selectedDays.isNotEmpty()) {
+            var count = 0
+            while (!selectedDays.contains(target.get(Calendar.DAY_OF_WEEK)) && count < 8) {
+                target.add(Calendar.DAY_OF_YEAR, 1)
+                count++
+            }
+        }
+        
+        return target
     }
 }

@@ -3,12 +3,13 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
 
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@id/saveTaskButton"
+        app:layout_constraintBottom_toTopOf="@id/buttonContainer"
         app:layout_constraintTop_toTopOf="parent">
 
         <LinearLayout
@@ -28,6 +29,7 @@
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:text="Select Course Plan"
+                    android:textColor="?android:attr/textColorPrimary"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -36,7 +38,8 @@
                     style="@style/Widget.MaterialComponents.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Create Custom" />
+                    android:text="CREATE CUSTOM"
+                    android:textColor="@color/green_primary" />
             </LinearLayout>
 
             <Spinner
@@ -50,6 +53,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="Course Topics"
+                android:textColor="?android:attr/textColorPrimary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -66,6 +70,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="Study Time Slot"
+                android:textColor="?android:attr/textColorPrimary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -84,6 +89,7 @@
 
                 <Button
                     android:id="@+id/addTimeSlotButton"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
@@ -94,12 +100,38 @@
         </LinearLayout>
     </ScrollView>
 
-    <Button
-        android:id="@+id/saveTaskButton"
+    <LinearLayout
+        android:id="@+id/buttonContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:text="Confirm Course Plan"
-        app:layout_constraintBottom_toBottomOf="parent" />
+        android:orientation="vertical"
+        android:padding="16dp"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <ProgressBar
+            android:id="@+id/loadingProgressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone"
+            android:layout_marginBottom="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/saveTaskButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Confirm Course Plan"
+            android:padding="12dp"
+            app:cornerRadius="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/goHomeManualButton"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Back to Home"
+            android:visibility="gone"
+            android:textColor="?android:attr/textColorSecondary" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

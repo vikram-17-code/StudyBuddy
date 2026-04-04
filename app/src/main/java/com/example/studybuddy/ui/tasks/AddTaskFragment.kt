@@ -1,10 +1,6 @@
 package com.example.studybuddy.ui.tasks
 
-import android.app.AlarmManager
-import android.app.PendingIntent
 import android.app.TimePickerDialog
-import android.content.Context
-import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -17,10 +13,9 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.studybuddy.R
 import com.example.studybuddy.databinding.FragmentAddTaskBinding
-import com.example.studybuddy.model.CoursePlan
 import com.example.studybuddy.model.TopicDetail
 import com.example.studybuddy.model.UserCourse
-import com.example.studybuddy.notification.NotificationReceiver
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.util.*
@@ -60,6 +55,10 @@ class AddTaskFragment : Fragment() {
         binding.customCourseButton.setOnClickListener {
             findNavController().navigate(R.id.action_addTaskFragment_to_addCustomCourseFragment)
         }
+
+        binding.goHomeManualButton.setOnClickListener {
+            findNavController().navigate(R.id.homeFragment)
+        }
     }
 
     private fun setupRecyclerView() {
@@ -85,8 +84,7 @@ class AddTaskFragment : Fragment() {
     private fun setupCourseSpinner(enrolledPlanIds: Set<String>) {
         val filteredPlans = availableCoursePlans.filter { it.planId !in enrolledPlanIds }
         if (filteredPlans.isEmpty()) {
-            Toast.makeText(context, "Already joined all courses", Toast.LENGTH_SHORT).show()
-            // We don't navigate up here anymore because user can still create custom course
+            Toast.makeText(context, "Already joined all available courses", Toast.LENGTH_SHORT).show()
         }
 
         val names = filteredPlans.map { it.courseName }
@@ -116,49 +114,30 @@ class AddTaskFragment : Fragment() {
         }
         val selectedSlot = userTimeSlots[selectedSlotPos]
 
+        // 1. Immediate UI Feedback
         binding.saveTaskButton.isEnabled = false
+        binding.saveTaskButton.text = "Redirecting..."
+        
+        val preferredSlot = selectedSlot.slotId
+        val firstTopic = availableTopics.find { it.planId == selectedPlan.planId && it.topicOrder == 1 }
+        
+        val userCourse = UserCourse(
+            userCourseId = UUID.randomUUID().toString(),
+            userId = userId,
+            planId = selectedPlan.planId,
+            currentTopicId = firstTopic?.topicId ?: "",
+            currentDayNumber = 1,
+            preferredSlot = preferredSlot
+        )
 
+        // 2. Perform background operation (Fire and forget, Firestore handles persistence)
         db.collection("user_courses")
-            .whereEqualTo("userId", userId)
-            .whereEqualTo("planId", selectedPlan.planId)
-            .get()
-            .addOnSuccessListener { documents ->
-                if (_binding == null || !isAdded) return@addOnSuccessListener
-                
-                if (!documents.isEmpty) {
-                    Toast.makeText(context, "Already enrolled in this course!", Toast.LENGTH_SHORT).show()
-                    binding.saveTaskButton.isEnabled = true
-                    return@addOnSuccessListener
-                }
+            .document(userCourse.userCourseId)
+            .set(userCourse)
 
-                val preferredSlot = selectedSlot.slotId
-                val firstTopic = availableTopics.find { it.planId == selectedPlan.planId && it.topicOrder == 1 }
-                
-                val userCourse = UserCourse(
-                    userCourseId = UUID.randomUUID().toString(),
-                    userId = userId,
-                    planId = selectedPlan.planId,
-                    currentTopicId = firstTopic?.topicId ?: "",
-                    currentDayNumber = 1,
-                    preferredSlot = preferredSlot
-                )
-
-                db.collection("user_courses")
-                    .document(userCourse.userCourseId)
-                    .set(userCourse)
-                    .addOnSuccessListener {
-                        if (_binding != null) {
-                            Toast.makeText(requireContext(), "Course Joined!", Toast.LENGTH_SHORT).show()
-                            findNavController().navigateUp()
-                        }
-                    }
-                    .addOnFailureListener {
-                        if (_binding != null) {
-                            binding.saveTaskButton.isEnabled = true
-                            Toast.makeText(requireContext(), "Failed to join course", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-            }
+        // 3. OPTIMISTIC NAVIGATION: Redirect IMMEDIATELY without waiting for network confirmation
+        Toast.makeText(requireContext(), "Successfully Joined '$selectedItem'!", Toast.LENGTH_SHORT).show()
+        findNavController().navigate(R.id.homeFragment)
     }
 
     private fun loadTimeSlots() {
@@ -194,7 +173,7 @@ class AddTaskFragment : Fragment() {
         val cbFri = dialogView.findViewById<android.widget.CheckBox>(R.id.cbFri)
         val cbSat = dialogView.findViewById<android.widget.CheckBox>(R.id.cbSat)
         
-        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle("Add Time Slot")
             .setView(dialogView)
             .setPositiveButton("Next") { _, _ ->
@@ -220,7 +199,7 @@ class AddTaskFragment : Fragment() {
 
     private fun pickTimeForSlot(slotName: String, selectedDays: List<Int>) {
         val calendar = Calendar.getInstance()
-        TimePickerDialog(requireContext(), { _, hourOfDay, minute ->
+        android.app.TimePickerDialog(requireContext(), { _, hourOfDay, minute ->
             saveTimeSlot(slotName, hourOfDay, minute, selectedDays)
         }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show()
     }

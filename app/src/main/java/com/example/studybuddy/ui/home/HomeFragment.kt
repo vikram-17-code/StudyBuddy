@@ -15,6 +15,7 @@ import com.example.studybuddy.model.CoursePlan
 import com.example.studybuddy.model.StudyHistory
 import com.example.studybuddy.model.TopicDetail
 import com.example.studybuddy.model.UserCourse
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -218,6 +219,7 @@ class HomeFragment : Fragment() {
         db.collection("study_history").document(history.historyId).set(history)
 
         val updateData = mutableMapOf<String, Any>("lastStudyDate" to Timestamp.now())
+        var isFullyCompleted = false
 
         if (userCourse.currentDayNumber < topic.requiredDays) {
             updateData["currentDayNumber"] = userCourse.currentDayNumber + 1
@@ -230,10 +232,22 @@ class HomeFragment : Fragment() {
             } else {
                 updateData["currentTopicId"] = "COMPLETED"
                 updateData["currentDayNumber"] = topic.requiredDays + 1
+                isFullyCompleted = true
             }
         }
 
-        db.collection("user_courses").document(userCourseId).update(updateData)
+        db.collection("user_courses").document(userCourseId).update(updateData).addOnSuccessListener {
+            if (isAdded) {
+                val message = if (isFullyCompleted) "Congratulations! You've finished the whole course!" else "Task completed for today!"
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Task Complete")
+                    .setMessage(message)
+                    .setPositiveButton("Great!") { _, _ ->
+                        if (isFullyCompleted) findNavController().navigate(R.id.progressFragment)
+                    }
+                    .show()
+            }
+        }
     }
 
     override fun onDestroyView() {
