@@ -1,9 +1,6 @@
 package com.example.studybuddy
 
 import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -30,6 +27,9 @@ class MainActivity : AppCompatActivity() {
     ) { isGranted: Boolean ->
         if (!isGranted) {
             Toast.makeText(this, "Notifications permission denied. Reminders won't work.", Toast.LENGTH_SHORT).show()
+        } else {
+            // Permission granted, trigger sync
+            NotificationHelper.scheduleAllAlarms(this)
         }
     }
 
@@ -47,9 +47,14 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         
-        // Use the unified Channel ID from Helper
         NotificationHelper.createNotificationChannel(this)
         askNotificationPermission()
+        
+        // Always try to sync if permission is already granted
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || 
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            NotificationHelper.scheduleAllAlarms(this)
+        }
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.main) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -62,7 +67,6 @@ class MainActivity : AppCompatActivity() {
         val navController = navHostFragment.navController
         binding.bottomNavigation.setupWithNavController(navController)
 
-        // Hide bottom navigation on splash, login and register screens
         navController.addOnDestinationChangedListener { _, destination, _ ->
             when (destination.id) {
                 R.id.splashFragment, R.id.loginFragment, R.id.registerFragment -> {
