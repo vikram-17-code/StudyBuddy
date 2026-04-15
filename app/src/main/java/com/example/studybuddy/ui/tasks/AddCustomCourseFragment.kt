@@ -2,22 +2,29 @@ package com.example.studybuddy.ui.tasks
 
 import android.app.TimePickerDialog
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import com.example.studybuddy.BuildConfig
 import com.example.studybuddy.R
 import com.example.studybuddy.databinding.FragmentAddCustomCourseBinding
 import com.example.studybuddy.databinding.ItemSubtopicInputBinding
 import com.example.studybuddy.model.CoursePlan
 import com.example.studybuddy.model.TopicDetail
 import com.example.studybuddy.model.UserCourse
+import com.google.ai.client.generativeai.GenerativeModel
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
+import org.json.JSONObject
 import java.util.*
 
 class AddCustomCourseFragment : Fragment() {
@@ -50,7 +57,114 @@ class AddCustomCourseFragment : Fragment() {
             validateAndSaveCourse()
         }
 
+        binding.generateAiButton.setOnClickListener {
+            generateCourseWithAi()
+        }
+
         loadTimeSlots()
+    }
+
+    private fun generateCourseWithAi() {
+        val promptText = binding.aiPromptInput.text.toString().trim()
+        if (promptText.isEmpty()) {
+            binding.aiPromptInput.error = "Please enter what you want to learn"
+            return
+        }
+
+        binding.aiProgressBar.visibility = View.VISIBLE
+        binding.generateAiButton.isEnabled = false
+
+        lifecycleScope.launch {
+            try {
+                // We try gemini-1.5-flash first, then gemini-pro if it fails
+                val result = tryModel("gemini-1.5-flash", promptText) 
+                    ?: tryModel("gemini-pro", promptText)
+
+                if (result != null) {
+                    parseAndPopulateCourse(result)
+                } else {
+                    throw Exception("Could not connect to any AI models. Check your API key and Internet.")
+                }
+            } catch (e: Exception) {
+                Log.e("AI_COURSE", "Error generating course", e)
+                val errorMsg = when {
+                    e.message?.contains("404") == true -> "Model not found. Ensure Gemini is enabled for your API key."
+                    e.message?.contains("403") == true -> "Access denied. Check your API Key permissions."
+                    else -> "AI Generation failed: ${e.localizedMessage}"
+                }
+                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+            } finally {
+                binding.aiProgressBar.visibility = View.GONE
+                binding.generateAiButton.isEnabled = true
+            }
+        }
+    }
+
+    private suspend fun tryModel(modelName: String, topic: String): String? {
+        return try {
+            val generativeModel = GenerativeModel(
+                modelName = modelName,
+                apiKey = BuildConfig.GEMINI_API_KEY
+            )
+            val fullPrompt = """
+                You are a study expert. Generate a structured study plan for "$topic". 
+                Provide the response in strict JSON format ONLY. 
+                The format must be:
+                {
+                  "courseName": "Detailed Name",
+                  "subtopics": [
+                    { "name": "Topic title", "days": 2 }
+                  ]
+                }
+                Include 5 to 7 subtopics. Do not include any text outside the JSON block.
+            """.trimIndent()
+
+            val response = generativeModel.generateContent(fullPrompt)
+            response.text
+        } catch (e: Exception) {
+            Log.w("AI_COURSE", "Model $modelName failed, trying next...")
+            null
+        }
+    }
+
+    private fun parseAndPopulateCourse(rawResponse: String) {
+        try {
+            // Clean the response from potential markdown formatting
+            val jsonString = rawResponse.trim().let {
+                if (it.startsWith("```json")) it.removePrefix("```json").removeSuffix("```").trim()
+                else if (it.startsWith("```")) it.removePrefix("```").removeSuffix("```").trim()
+                else it
+            }
+
+            val json = JSONObject(jsonString)
+            val courseName = json.getString("courseName")
+            val subtopicsArray = json.getJSONArray("subtopics")
+
+            binding.courseNameInput.setText(courseName)
+            binding.subtopicsContainer.removeAllViews()
+
+            for (i in 0 until subtopicsArray.length()) {
+                val topicJson = subtopicsArray.getJSONObject(i)
+                val name = topicJson.getString("name")
+                val days = topicJson.getInt("days")
+                addGeneratedSubtopicRow(name, days)
+            }
+            Toast.makeText(context, "Plan generated successfully!", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Log.e("AI_PARSE", "Error parsing: $rawResponse", e)
+            Toast.makeText(context, "AI response format was invalid. Please try again.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun addGeneratedSubtopicRow(name: String, days: Int) {
+        val rowBinding = ItemSubtopicInputBinding.inflate(layoutInflater, binding.subtopicsContainer, false)
+        rowBinding.subtopicNameInput.setText(name)
+        rowBinding.requiredDaysInput.setText(days.toString())
+        
+        rowBinding.removeSubtopicButton.setOnClickListener {
+            binding.subtopicsContainer.removeView(rowBinding.root)
+        }
+        binding.subtopicsContainer.addView(rowBinding.root)
     }
 
     private fun addSubtopicRow() {
@@ -104,9 +218,9 @@ class AddCustomCourseFragment : Fragment() {
 
         for (i in 0 until binding.subtopicsContainer.childCount) {
             val view = binding.subtopicsContainer.getChildAt(i)
-            val nameInput = view.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.subtopicNameInput)
-            val daysInput = view.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.requiredDaysInput)
-            val materialInput = view.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.materialLinkInput)
+            val nameInput = view.findViewById<TextInputEditText>(R.id.subtopicNameInput)
+            val daysInput = view.findViewById<TextInputEditText>(R.id.requiredDaysInput)
+            val materialInput = view.findViewById<TextInputEditText>(R.id.materialLinkInput)
 
             val name = nameInput.text.toString().trim()
             val days = daysInput.text.toString().toIntOrNull() ?: 0
@@ -143,11 +257,9 @@ class AddCustomCourseFragment : Fragment() {
         }
         val preferredSlot = userTimeSlots[selectedSlotPos].slotId
 
-        // OPTIMISTIC NAVIGATION
         binding.createCourseButton.isEnabled = false
         binding.createCourseButton.text = "Redirecting..."
         
-        // Save Course Plan in Background
         val coursePlan = CoursePlan(planId, courseName, courseWebsite, userId)
         val batch = db.batch()
         
@@ -171,10 +283,8 @@ class AddCustomCourseFragment : Fragment() {
         val enrollmentRef = db.collection("user_courses").document(userCourseId)
         batch.set(enrollmentRef, userCourse)
 
-        // Fire the batch and forget (Firestore handles sync)
         batch.commit()
 
-        // Instant redirect
         Toast.makeText(requireContext(), "Custom Course '$courseName' Created!", Toast.LENGTH_SHORT).show()
         findNavController().navigate(R.id.homeFragment)
     }
