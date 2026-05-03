@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.google.services)
@@ -17,10 +20,10 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // Securely read API key from local.properties (ignored by git) or fallback to gradle.properties
-        val localProperties = java.util.Properties()
+        val localProperties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")
         if (localPropertiesFile.exists()) {
-            localProperties.load(java.io.FileInputStream(localPropertiesFile))
+            localProperties.load(FileInputStream(localPropertiesFile))
         }
         val groqApiKey: String = localProperties.getProperty("GROQ_API_KEY") ?: project.findProperty("GROQ_API_KEY") as? String ?: ""
         buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
