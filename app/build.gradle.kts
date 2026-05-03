@@ -16,9 +16,14 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Map the API key from gradle.properties
-        val geminiApiKey: String = project.findProperty("GEMINI_API_KEY") as? String ?: ""
-        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
+        // Securely read API key from local.properties (ignored by git) or fallback to gradle.properties
+        val localProperties = java.util.Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localProperties.load(java.io.FileInputStream(localPropertiesFile))
+        }
+        val groqApiKey: String = localProperties.getProperty("GROQ_API_KEY") ?: project.findProperty("GROQ_API_KEY") as? String ?: ""
+        buildConfigField("String", "GROQ_API_KEY", "\"$groqApiKey\"")
     }
 
     buildTypes {
@@ -53,8 +58,7 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.messaging)
 
-    // Gemini AI
-    implementation(libs.google.generativeai)
+    // Removed Gemini AI SDK as we are using REST for Groq
 
     // Navigation
     implementation(libs.androidx.navigation.fragment.ktx)
